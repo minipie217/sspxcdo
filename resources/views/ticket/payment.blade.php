@@ -16,7 +16,7 @@
             {{-- Reserved tickets summary --}}
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
                 <h3 class="font-semibold text-gray-700 mb-4">
-                    Reserved Tickets ({{ $tickets->count() }})
+                    Reserved Tickets (<span id="ticket-count">{{ $tickets->count() }}</span>)
                 </h3>
 
                 <table class="w-full text-sm">
@@ -53,7 +53,8 @@
                     <tfoot class="border-t-2 border-gray-200">
                         <tr>
                             <td colspan="2" class="py-3 font-semibold">Total</td>
-                            <td class="py-3 text-right font-bold text-indigo-600 text-lg">
+                            <td class="py-3 text-right font-bold text-indigo-600 text-lg"
+                                id="payment-total">
                                 ₱{{ number_format($raffle->ticket_price * $tickets->count(), 2) }}
                             </td>
                         </tr>
@@ -62,10 +63,13 @@
             </div>
 
             {{-- Payment instructions --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6">
+            <div class="bg-white shadow-sm sm:rounded-lg p-6" id="payment-instructions">
                 <h3 class="font-semibold text-gray-700 mb-3">Payment Instructions</h3>
                 <p class="text-sm text-gray-500 mb-4">
-                    Send exactly <strong>₱{{ number_format($raffle->ticket_price * $tickets->count(), 2) }}</strong>
+                    Send exactly
+                    <strong id="payment-amount">
+                        ₱{{ number_format($raffle->ticket_price * $tickets->count(), 2) }}
+                    </strong>
                     to any of the following:
                 </p>
 
@@ -112,9 +116,9 @@
             </div>
 
             {{-- Proof of payment --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6">
+            <div class="bg-white shadow-sm sm:rounded-lg p-6" id="payment-proof">
                 <h3 class="font-semibold text-gray-700 mb-2">Submit Payment Proof</h3>
-                <p class="text-sm text-gray-500 mb-4">
+                <p class="text-sm text-gray-500 mb-4" id="proof-label">
                     One proof covers all {{ $tickets->count() }} ticket(s).
                 </p>
 
@@ -181,18 +185,26 @@
     </div>
 
     <script>
-        // Per-ticket countdown
         function updateCountdowns() {
-            let anyExpired = false;
-
             document.querySelectorAll('.ticket-countdown').forEach(el => {
                 const expiresAt = new Date(el.dataset.expires);
-                const diff      = Math.max(0, Math.floor((expiresAt - new Date()) / 1000));
+                const diff      = Math.floor((expiresAt - new Date()) / 1000);
 
-                if (diff === 0) {
-                    el.textContent = 'Expired';
-                    el.classList.add('text-red-500', 'font-semibold');
-                    anyExpired = true;
+                if (diff <= 0) {
+                    const row = el.closest('tr');
+                    if (row) {
+                        row.remove();
+                        recalculateTotal();
+                    }
+
+                    const remaining = document.querySelectorAll('.ticket-countdown').length;
+                    if (remaining === 0) {
+                        document.getElementById('payment-instructions').style.display = 'none';
+                        document.getElementById('payment-proof').style.display        = 'none';
+                        setTimeout(() => {
+                            window.location.href = "{{ route('ticket.index', $raffle) }}";
+                        }, 2000);
+                    }
                     return;
                 }
 
@@ -200,23 +212,29 @@
                 const secs = (diff % 60).toString().padStart(2, '0');
                 el.textContent = `in ${mins}:${secs}`;
 
-                // Turn red when under 5 minutes
                 if (diff < 300) {
                     el.classList.add('text-red-500', 'font-semibold');
                     el.classList.remove('text-gray-400');
                 } else {
+                    el.classList.remove('text-red-500', 'font-semibold');
                     el.classList.add('text-gray-400');
                 }
             });
+        }
 
-            // Redirect only if ALL tickets have expired
-            const allCountdowns = document.querySelectorAll('.ticket-countdown');
-            const expiredCount  = [...allCountdowns].filter(el => el.textContent === 'Expired').length;
+        function recalculateTotal() {
+            const ticketPrice = {{ $raffle->ticket_price }};
+            const remaining   = document.querySelectorAll('.ticket-countdown').length;
+            const total       = ticketPrice * remaining;
+            const formatted   = '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 2 });
 
-            if (expiredCount === allCountdowns.length) {
-                setTimeout(() => {
-                    window.location.href = "{{ route('ticket.index', $raffle) }}";
-                }, 2000);
+            document.getElementById('ticket-count').textContent   = remaining;
+            document.getElementById('payment-total').textContent  = formatted;
+            document.getElementById('payment-amount').textContent = formatted;
+
+            const proofLabel = document.getElementById('proof-label');
+            if (proofLabel) {
+                proofLabel.textContent = `One proof covers all ${remaining} ticket(s).`;
             }
         }
 

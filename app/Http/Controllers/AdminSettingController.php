@@ -22,12 +22,13 @@ class AdminSettingController extends Controller
         $data = $request->validate([
             'settings'   => 'required|array',
             'settings.*' => 'nullable|string|max:500',
+            'tab'        => 'nullable|string',
         ]);
 
         foreach ($data['settings'] as $key => $value) {
             Setting::set($key, $value);
         }
 
-        return back()->with('success', 'Settings updated.');
+        return back()->with('success', 'Settings updated.')->with('tab', $request->tab ?? 'general');
     }
 }
