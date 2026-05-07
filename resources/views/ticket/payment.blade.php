@@ -5,7 +5,7 @@
                 Complete Payment
             </h2>
             <a href="{{ route('ticket.index', $raffle) }}">
-                <x-secondary-button>← Back to Tickets</x-secondary-button>
+                <x-secondary-button>← Reserve More Tickets</x-secondary-button>
             </a>
         </div>
     </x-slot>
@@ -13,7 +13,7 @@
     <div class="py-12">
         <div class="max-w-2xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            {{-- Countdown — show earliest expiry --}}
+            {{-- Countdown --}}
             @php $earliest = $tickets->sortBy('reserved_until')->first(); @endphp
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
                 <p class="text-yellow-800 font-semibold">Reservations expire in:</p>
@@ -61,9 +61,9 @@
 
             {{-- Payment instructions --}}
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                <h3 class="font-semibold text-gray-700 mb-4">Payment Instructions</h3>
+                <h3 class="font-semibold text-gray-700 mb-3">Payment Instructions</h3>
                 <p class="text-sm text-gray-500 mb-4">
-                    Send <strong>₱{{ number_format($raffle->ticket_price * $tickets->count(), 2) }}</strong>
+                    Send exactly <strong>₱{{ number_format($raffle->ticket_price * $tickets->count(), 2) }}</strong>
                     to any of the following:
                 </p>
 
@@ -111,7 +111,7 @@
 
             {{-- Proof of payment --}}
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                <h3 class="font-semibold text-gray-700 mb-4">Submit Payment Proof</h3>
+                <h3 class="font-semibold text-gray-700 mb-2">Submit Payment Proof</h3>
                 <p class="text-sm text-gray-500 mb-4">
                     One proof covers all {{ $tickets->count() }} ticket(s).
                 </p>
@@ -168,10 +168,7 @@
                         <x-input-error :messages="$errors->get('proof_image')" class="mt-2" />
                     </div>
 
-                    <div class="flex justify-end gap-3 mt-6">
-                        <a href="{{ route('ticket.index', $raffle) }}">
-                            <x-secondary-button type="button">Reserve More Tickets</x-secondary-button>
-                        </a>
+                    <div class="flex justify-end mt-6">
                         <x-primary-button>Submit Payment Proof</x-primary-button>
                     </div>
 
@@ -182,7 +179,6 @@
     </div>
 
     <script>
-        // Countdown to earliest expiry
         const expiresAt = new Date("{{ $earliest->reserved_until->toIso8601String() }}");
 
         function updateCountdown() {
@@ -194,7 +190,12 @@
 
             if (diff === 0) {
                 el.textContent = 'Expired';
+                el.classList.remove('text-yellow-600');
                 el.classList.add('text-red-600');
+                // Redirect after 2 seconds
+                setTimeout(() => {
+                    window.location.href = "{{ route('ticket.index', $raffle) }}";
+                }, 2000);
             }
         }
 

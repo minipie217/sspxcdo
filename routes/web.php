@@ -65,6 +65,9 @@ Route::middleware('admin')->group(function () {
     // Settings
     Route::get('/admin/settings',  [AdminSettingController::class, 'index'])->name('admin.settings.index');
     Route::post('/admin/settings', [AdminSettingController::class, 'update'])->name('admin.settings.update');
+
+    Route::post('/admin/payments/confirm-all', [AdminPaymentController::class, 'confirmAll'])->name('admin.payments.confirm-all');
+    Route::post('/admin/payments/reject-all',  [AdminPaymentController::class, 'rejectAll'])->name('admin.payments.reject-all');
 });
 
 // MUST come after /raffle/create

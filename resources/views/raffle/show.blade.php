@@ -27,6 +27,28 @@
                 </div>
             @endif
 
+            {{-- Expired state for sponsor --}}
+            @if (Auth::guard('sponsor')->check())
+                @php
+                    $myReserved = $raffle->tickets()
+                        ->where('sponsor_id', Auth::guard('sponsor')->id())
+                        ->where('status', 'reserved')
+                        ->count();
+
+                    $hasExpired = $raffle->tickets()
+                        ->where('sponsor_id', Auth::guard('sponsor')->id())
+                        ->where('status', 'reserved')
+                        ->where('reserved_until', '<', now())
+                        ->exists();
+                @endphp
+
+            @endif
+
+            {{-- Payment status component --}}
+            <div class="mt-4">
+                <x-payment-status :raffle="$raffle" :sponsorPayments="$sponsorPayments" />
+            </div>
+
             {{-- Raffle details --}}
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
                 <p class="text-gray-600 mb-4">{{ $raffle->description }}</p>
@@ -142,7 +164,6 @@
                     </div>
                 @endif
             </div>
-
         </div>
     </div>
 </x-app-layout>

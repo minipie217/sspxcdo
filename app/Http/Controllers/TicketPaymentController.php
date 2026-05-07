@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Raffle;
 use App\Models\Ticket;
-use App\Models\TicketPayment;
 use App\Services\PaymentService;
 use App\Services\SettingService;
 use Illuminate\Http\Request;
@@ -17,7 +16,6 @@ class TicketPaymentController extends Controller
         private SettingService $settingService,
     ) {}
 
-    // Reserve a ticket inline
     public function reserve(Request $request, Raffle $raffle, Ticket $ticket)
     {
         $request->validate([
@@ -46,7 +44,6 @@ class TicketPaymentController extends Controller
             ->with('success', 'Ticket ' . $ticket->ticket_number . ' reserved!');
     }
 
-    // Show payment page for all reserved tickets
     public function showPayment(Raffle $raffle)
     {
         $sponsor = Auth::guard('sponsor')->user();
@@ -56,9 +53,17 @@ class TicketPaymentController extends Controller
             ->where('status', 'reserved')
             ->get();
 
+        // Guard — redirect if no reserved tickets
         if ($tickets->isEmpty()) {
             return redirect()->route('ticket.index', $raffle)
-                ->with('error', 'You have no reserved tickets.');
+                ->with('error', 'You have no reserved tickets. Please reserve a ticket first.');
+        }
+
+        // Guard — redirect if reservation expired
+        $earliest = $tickets->sortBy('reserved_until')->first();
+        if ($earliest->reserved_until->isPast()) {
+            return redirect()->route('ticket.index', $raffle)
+                ->with('error', 'Your reservations have expired. Please reserve again.');
         }
 
         $instructions = $this->settingService->paymentInstructions();
@@ -67,7 +72,6 @@ class TicketPaymentController extends Controller
         return view('ticket.payment', compact('raffle', 'tickets', 'instructions', 'minutes'));
     }
 
-    // Submit proof for all reserved tickets at once
     public function submitProof(Request $request, Raffle $raffle)
     {
         $request->validate([
@@ -92,21 +96,17 @@ class TicketPaymentController extends Controller
             ? $request->file('proof_image')
             : $request->transaction_number;
 
-        // Submit one payment proof per ticket
-        foreach ($tickets as $ticket) {
-            $this->paymentService->submitProof(
-                ticket:    $ticket,
-                sponsorId: $sponsor->id,
-                proofType: $request->proof_type,
-                proof:     $proof,
-            );
-        }
+        $this->paymentService->submitProofForAll(
+            tickets:   $tickets->all(),
+            sponsorId: $sponsor->id,
+            proofType: $request->proof_type,
+            proof:     $proof,
+        );
 
         return redirect()->route('ticket.index', $raffle)
             ->with('success', 'Payment proof submitted for ' . $tickets->count() . ' ticket(s)! We will confirm shortly.');
     }
 
-    // Cancel a single reservation
     public function cancelReservation(Raffle $raffle, Ticket $ticket)
     {
         $sponsor = Auth::guard('sponsor')->user();

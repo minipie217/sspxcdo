@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateRaffleRequest;
 use App\Models\Raffle;
 use App\Services\RaffleService;
 use Illuminate\Support\Facades\Auth;
+use App\Models\TicketPayment;
 
 class RaffleController extends Controller
 {
@@ -55,7 +56,17 @@ class RaffleController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('raffle.show', compact('raffle', 'tickets', 'status'));
+        // Sponsor payment status
+        $sponsorPayments = null;
+        if (Auth::guard('sponsor')->check()) {
+            $sponsorPayments = TicketPayment::with('ticket')
+                ->where('sponsor_id', Auth::guard('sponsor')->id())
+                ->whereHas('ticket', fn($q) => $q->where('raffle_id', $raffle->id))
+                ->latest()
+                ->get();
+        }
+
+        return view('raffle.show', compact('raffle', 'tickets', 'status', 'sponsorPayments'));
     }
 
     public function edit(Raffle $raffle)

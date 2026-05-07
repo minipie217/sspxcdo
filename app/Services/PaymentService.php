@@ -30,30 +30,44 @@ class PaymentService
 
             $minutes = $this->settingService->reservationMinutes();
 
+            // All tickets for this sponsor get the same expiry
+            $reservedUntil = now()->addMinutes($minutes);
+
             $updated = Ticket::where('id', $ticket->id)
                 ->where('status', TicketStatus::Available)
                 ->update([
                     'status'            => TicketStatus::Reserved,
                     'sponsor_id'        => $sponsorId,
-                    'reserved_until'    => now()->addMinutes($minutes),
+                    'reserved_until'    => $reservedUntil,
                     'holder_first_name' => $useOther ? $firstName : null,
                     'holder_last_name'  => $useOther ? $lastName  : null,
                     'updated_at'        => now(),
                 ]);
+
+            if ($updated) {
+                // Sync ALL existing reservations for this sponsor
+                // to the same expiry time
+                Ticket::where('sponsor_id', $sponsorId)
+                    ->where('status', TicketStatus::Reserved)
+                    ->where('id', '!=', $ticket->id)
+                    ->update([
+                        'reserved_until' => $reservedUntil,
+                        'updated_at'     => now(),
+                    ]);
+            }
 
             return (bool) $updated;
         });
     }
 
     public function submitProof(
-        Ticket           $ticket,
-        int              $sponsorId,
-        string           $proofType,
+        Ticket              $ticket,
+        int                 $sponsorId,
+        string              $proofType,
         string|UploadedFile $proof
     ): TicketPayment {
         return DB::transaction(function () use ($ticket, $sponsorId, $proofType, $proof) {
 
-            // Handle image upload
             $proofValue = $proofType === 'image'
                 ? Storage::disk('public')->put('payment_proofs', $proof)
                 : $proof;
@@ -66,11 +80,41 @@ class PaymentService
                 'status'      => PaymentStatus::Pending,
             ]);
 
-            // Notify all admins
-            $admins = User::all();
-            Notification::send($admins, new PaymentReceivedNotification($payment));
-
             return $payment;
+        });
+    }
+
+    public function submitProofForAll(
+        array               $tickets,
+        int                 $sponsorId,
+        string              $proofType,
+        string|UploadedFile $proof
+    ): void {
+        DB::transaction(function () use ($tickets, $sponsorId, $proofType, $proof) {
+
+            // Store image once, reuse path for all tickets
+            $proofValue = $proofType === 'image'
+                ? Storage::disk('public')->put('payment_proofs', $proof)
+                : $proof;
+
+            foreach ($tickets as $ticket) {
+                TicketPayment::create([
+                    'ticket_id'   => $ticket->id,
+                    'sponsor_id'  => $sponsorId,
+                    'proof_type'  => $proofType,
+                    'proof_value' => $proofValue,
+                    'status'      => PaymentStatus::Pending,
+                ]);
+            }
+
+            // Notify all admins once — not per ticket
+            $admins = User::all();
+            $firstPayment = TicketPayment::where('sponsor_id', $sponsorId)
+                ->where('status', PaymentStatus::Pending)
+                ->latest()
+                ->first();
+
+            Notification::send($admins, new PaymentReceivedNotification($firstPayment));
         });
     }
 
@@ -88,7 +132,6 @@ class PaymentService
                 'status' => TicketStatus::Sold,
             ]);
 
-            // Notify sponsor
             $payment->sponsor->notify(new PaymentConfirmedNotification($payment));
         });
     }
@@ -104,7 +147,7 @@ class PaymentService
                 'notes'        => $notes,
             ]);
 
-            // Release ticket back to available
+            // Release ticket immediately on rejection
             $payment->ticket->update([
                 'status'            => TicketStatus::Available,
                 'sponsor_id'        => null,
@@ -113,7 +156,6 @@ class PaymentService
                 'holder_last_name'  => null,
             ]);
 
-            // Notify sponsor
             $payment->sponsor->notify(new PaymentRejectedNotification($payment, $notes));
         });
     }

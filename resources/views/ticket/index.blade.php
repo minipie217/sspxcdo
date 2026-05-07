@@ -26,6 +26,37 @@
                 </div>
             @endif
 
+            {{-- Expired reservation banner --}}
+            @if (Auth::guard('sponsor')->check())
+                @php
+                    $hasExpired = $raffle->tickets()
+                        ->where('sponsor_id', Auth::guard('sponsor')->id())
+                        ->where('status', 'reserved')
+                        ->where('reserved_until', '<', now())
+                        ->exists();
+                @endphp
+
+                @if ($hasExpired)
+                    <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p class="text-red-700 font-semibold">Your reservations have expired.</p>
+                        <p class="text-red-600 text-sm mt-1">
+                            Your reserved tickets have been released back to the available pool.
+                            You may reserve them again.
+                        </p>
+                    </div>
+                @endif
+            @endif
+
+            {{-- Payment status --}}
+            <div class="mb-4">
+                <x-payment-status :raffle="$raffle" :sponsorPayments="$sponsorPayments" />
+            </div>
+
+            {{-- Status filter --}}
+            <div class="mb-4 flex gap-3 text-sm">
+                ...
+            </div>
+
             {{-- Status filter --}}
             <div class="mb-4 flex gap-3 text-sm">
                 @foreach (['', 'available', 'reserved', 'sold'] as $s)

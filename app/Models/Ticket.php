@@ -64,7 +64,7 @@ class Ticket extends Model
             TicketStatus::Sold      => 'Sold',
         };
     }
-    public function payment(): HasOne
+    public function payment(): hasOne
     {
         return $this->hasOne(TicketPayment::class);
     }

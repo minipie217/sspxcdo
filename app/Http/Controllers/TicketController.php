@@ -21,8 +21,18 @@ class TicketController extends Controller
             ->when($status, fn($q) => $q->where('status', $status))
             ->paginate(20)
             ->withQueryString();
+        
+        // Sponsor payment status
+        $sponsorPayments = null;
+        if (Auth::guard('sponsor')->check()) {
+            $sponsorPayments = \App\Models\TicketPayment::with('ticket')
+                ->where('sponsor_id', Auth::guard('sponsor')->id())
+                ->whereHas('ticket', fn($q) => $q->where('raffle_id', $raffle->id))
+                ->latest()
+                ->get();
+        }
 
-        return view('ticket.index', compact('raffle', 'tickets', 'status'));
+        return view('ticket.index', compact('raffle', 'tickets', 'status', 'sponsorPayments'));
     }
 
     // Show single ticket + reserve form
