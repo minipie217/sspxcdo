@@ -15,6 +15,25 @@ class TicketController extends Controller
     // Show all tickets for a raffle — with reserve button for sponsors
     public function index(Raffle $raffle)
     {
+        // Release expired reservations inline before displaying
+        $expired = $raffle->tickets()
+            ->where('status', 'reserved')
+            ->where('reserved_until', '<', now())
+            ->get();
+        foreach ($expired as $ticket) {
+            \App\Models\TicketPayment::where('ticket_id', $ticket->id)
+                ->where('status', 'pending')
+                ->delete();
+
+            $ticket->update([
+                'status'            => 'available',
+                'sponsor_id'        => null,
+                'reserved_until'    => null,
+                'holder_first_name' => null,
+                'holder_last_name'  => null,
+            ]);
+        }
+
         $status  = request('status');
         $tickets = $raffle->tickets()
             ->with('sponsor')

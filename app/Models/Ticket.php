@@ -4,7 +4,7 @@ namespace App\Models;
 
 use App\Enums\TicketStatus;
 use App\Models\TicketPayment;
-use App\Models\hasOne;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -64,7 +64,7 @@ class Ticket extends Model
             TicketStatus::Sold      => 'Sold',
         };
     }
-    public function payment(): hasOne
+    public function payment(): HasOne
     {
         return $this->hasOne(TicketPayment::class);
     }

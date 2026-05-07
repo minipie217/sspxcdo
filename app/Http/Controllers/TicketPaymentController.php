@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Raffle;
 use App\Models\Ticket;
+use App\Models\TicketPayment;
+use App\Notifications\ReservationExpiredNotification;
 use App\Services\PaymentService;
 use App\Services\SettingService;
 use Illuminate\Http\Request;
@@ -15,6 +17,10 @@ class TicketPaymentController extends Controller
         private PaymentService $paymentService,
         private SettingService $settingService,
     ) {}
+
+    // -----------------------------------------------------------------------
+    // Reserve a ticket inline
+    // -----------------------------------------------------------------------
 
     public function reserve(Request $request, Raffle $raffle, Ticket $ticket)
     {
@@ -37,33 +43,34 @@ class TicketPaymentController extends Controller
 
         if (! $reserved) {
             return redirect()->route('ticket.index', $raffle)
-                ->with('error', 'Ticket ' . $ticket->ticket_number . ' was just taken. Please choose another.');
+                ->with('error', "Ticket {$ticket->ticket_number} was just taken. Please choose another.");
         }
 
         return redirect()->route('ticket.index', $raffle)
-            ->with('success', 'Ticket ' . $ticket->ticket_number . ' reserved!');
+            ->with('success', "Ticket {$ticket->ticket_number} reserved!");
     }
+
+    // -----------------------------------------------------------------------
+    // Show payment page
+    // -----------------------------------------------------------------------
 
     public function showPayment(Raffle $raffle)
     {
         $sponsor = Auth::guard('sponsor')->user();
 
+        $this->releaseExpired($raffle, $sponsor);
+
+        // Only tickets with no pending payment yet
         $tickets = $raffle->tickets()
             ->where('sponsor_id', $sponsor->id)
             ->where('status', 'reserved')
+            ->where('reserved_until', '>', now())
+            ->whereDoesntHave('payment', fn($q) => $q->where('status', 'pending'))
             ->get();
 
-        // Guard — redirect if no reserved tickets
         if ($tickets->isEmpty()) {
             return redirect()->route('ticket.index', $raffle)
-                ->with('error', 'You have no reserved tickets. Please reserve a ticket first.');
-        }
-
-        // Guard — redirect if reservation expired
-        $earliest = $tickets->sortBy('reserved_until')->first();
-        if ($earliest->reserved_until->isPast()) {
-            return redirect()->route('ticket.index', $raffle)
-                ->with('error', 'Your reservations have expired. Please reserve again.');
+                ->with('error', 'No new tickets to pay for. Check your payment status below.');
         }
 
         $instructions = $this->settingService->paymentInstructions();
@@ -71,6 +78,10 @@ class TicketPaymentController extends Controller
 
         return view('ticket.payment', compact('raffle', 'tickets', 'instructions', 'minutes'));
     }
+
+    // -----------------------------------------------------------------------
+    // Submit proof of payment
+    // -----------------------------------------------------------------------
 
     public function submitProof(Request $request, Raffle $raffle)
     {
@@ -82,14 +93,17 @@ class TicketPaymentController extends Controller
 
         $sponsor = Auth::guard('sponsor')->user();
 
+        // Only tickets with no pending payment yet
         $tickets = $raffle->tickets()
             ->where('sponsor_id', $sponsor->id)
             ->where('status', 'reserved')
+            ->where('reserved_until', '>', now())
+            ->whereDoesntHave('payment', fn($q) => $q->where('status', 'pending'))
             ->get();
 
         if ($tickets->isEmpty()) {
             return redirect()->route('ticket.index', $raffle)
-                ->with('error', 'No reserved tickets found.');
+                ->with('error', 'No new tickets to submit payment for.');
         }
 
         $proof = $request->proof_type === 'image'
@@ -104,8 +118,12 @@ class TicketPaymentController extends Controller
         );
 
         return redirect()->route('ticket.index', $raffle)
-            ->with('success', 'Payment proof submitted for ' . $tickets->count() . ' ticket(s)! We will confirm shortly.');
+            ->with('success', "Payment proof submitted for {$tickets->count()} ticket(s)! We will confirm shortly.");
     }
+
+    // -----------------------------------------------------------------------
+    // Cancel a reservation
+    // -----------------------------------------------------------------------
 
     public function cancelReservation(Raffle $raffle, Ticket $ticket)
     {
@@ -125,6 +143,35 @@ class TicketPaymentController extends Controller
         ]);
 
         return redirect()->route('ticket.index', $raffle)
-            ->with('success', 'Reservation for ticket ' . $ticket->ticket_number . ' cancelled.');
+            ->with('success', "Reservation for ticket {$ticket->ticket_number} cancelled.");
+    }
+
+    // -----------------------------------------------------------------------
+    // Private — release expired reservations inline
+    // -----------------------------------------------------------------------
+
+    private function releaseExpired(Raffle $raffle, $sponsor): void
+    {
+        $expired = $raffle->tickets()
+            ->where('sponsor_id', $sponsor->id)
+            ->where('status', 'reserved')
+            ->where('reserved_until', '<', now())
+            ->get();
+
+        foreach ($expired as $ticket) {
+            TicketPayment::where('ticket_id', $ticket->id)
+                ->where('status', 'pending')
+                ->delete();
+
+            $ticket->update([
+                'status'            => 'available',
+                'sponsor_id'        => null,
+                'reserved_until'    => null,
+                'holder_first_name' => null,
+                'holder_last_name'  => null,
+            ]);
+
+            $sponsor->notify(new ReservationExpiredNotification($ticket));
+        }
     }
 }

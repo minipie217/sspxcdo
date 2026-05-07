@@ -36,6 +36,7 @@
                             @endphp
 
                             <div class="bg-white shadow-sm rounded-lg overflow-hidden flex flex-col">
+
                                 {{-- Card header --}}
                                 <div class="px-5 py-4 bg-gray-50 border-b">
                                     <div class="flex justify-between items-start">
@@ -57,21 +58,34 @@
                                 </div>
 
                                 {{-- Ticket list --}}
-                                <div class="px-5 py-3 flex-1 divide-y divide-gray-100">
+                                <div class="px-5 py-2 flex-1 divide-y divide-gray-100">
                                     @foreach ($payments as $payment)
-                                        <div class="py-2 flex items-center justify-between">
-                                            <div>
-                                                <p class="font-mono font-bold text-sm text-gray-800">
-                                                    {{ $payment->ticket->ticket_number }}
+                                        @php
+                                            $expiresAt  = $payment->ticket->reserved_until;
+                                            $isExpiring = $expiresAt && $expiresAt->diffInMinutes(now()) >= -5;
+                                        @endphp
+
+                                        <div class="py-3">
+                                            {{-- Ticket number --}}
+                                            <p class="font-mono font-bold text-gray-800">
+                                                {{ $payment->ticket->ticket_number }}
+                                            </p>
+
+                                            {{-- Submitted --}}
+                                            <p class="text-xs text-gray-400 mt-1">
+                                                Submitted {{ $payment->created_at->diffForHumans() }}
+                                            </p>
+
+                                            {{-- Expiry --}}
+                                            @if ($expiresAt)
+                                                <p class="text-xs mt-1 {{ $isExpiring ? 'text-red-500 font-semibold' : 'text-gray-400' }}">
+                                                    Expiresss
+                                                    <span class="countdown-timer"
+                                                          data-expires="{{ $expiresAt->toIso8601String() }}">
+                                                        {{ $expiresAt->diffForHumans() }}
+                                                    </span>
                                                 </p>
-                                                <p class="text-xs text-gray-400">
-                                                    {{ ucfirst(str_replace('_', ' ', $payment->proof_type->value)) }}
-                                                    · {{ $payment->created_at->diffForHumans() }}
-                                                </p>
-                                            </div>
-                                            <span class="text-xs font-semibold text-gray-700">
-                                                ₱{{ number_format($payment->ticket->raffle->ticket_price, 2) }}
-                                            </span>
+                                            @endif
                                         </div>
                                     @endforeach
                                 </div>
@@ -91,6 +105,7 @@
                                         Review All Tickets
                                     </a>
                                 </div>
+
                             </div>
                         @endforeach
                     </div>
@@ -130,7 +145,9 @@
                                             {{ $payment->status->value }}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-3">{{ $payment->confirmedBy?->name ?? '—' }}</td>
+                                    <td class="px-4 py-3">
+                                        {{ $payment->confirmedBy?->name ?? '—' }}
+                                    </td>
                                     <td class="px-4 py-3">
                                         {{ $payment->confirmed_at?->format('M d, Y H:i') ?? '—' }}
                                     </td>
@@ -150,4 +167,35 @@
 
         </div>
     </div>
+
+    <script>
+        // Live countdown for each ticket expiry
+        function updateCountdowns() {
+            document.querySelectorAll('.countdown-timer').forEach(el => {
+                const expiresAt = new Date(el.dataset.expires);
+                const diff      = Math.floor((expiresAt - new Date()) / 1000);
+
+                if (diff <= 0) {
+                    el.textContent = 'Expired';
+                    el.classList.add('text-red-600');
+                    // Reload page after 3 seconds to remove expired cards
+                    setTimeout(() => window.location.reload(), 3000);
+                    return;
+                }
+
+                const mins = Math.floor(diff / 60).toString().padStart(2, '0');
+                const secs = (diff % 60).toString().padStart(2, '0');
+                el.textContent = `in ${mins}:${secs}`;
+
+                // Turn red when under 5 minutes
+                if (diff < 300) {
+                    el.classList.add('text-red-500', 'font-semibold');
+                    el.classList.remove('text-gray-400');
+                }
+            });
+        }
+
+        updateCountdowns();
+        setInterval(updateCountdowns, 1000);
+    </script>
 </x-app-layout>

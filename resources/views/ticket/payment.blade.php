@@ -13,16 +13,6 @@
     <div class="py-12">
         <div class="max-w-2xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            {{-- Countdown --}}
-            @php $earliest = $tickets->sortBy('reserved_until')->first(); @endphp
-            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                <p class="text-yellow-800 font-semibold">Reservations expire in:</p>
-                <p id="countdown" class="text-3xl font-mono font-bold text-yellow-600 mt-1"></p>
-                <p class="text-xs text-yellow-600 mt-1">
-                    Submit payment before the earliest reservation expires.
-                </p>
-            </div>
-
             {{-- Reserved tickets summary --}}
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
                 <h3 class="font-semibold text-gray-700 mb-4">
@@ -40,11 +30,23 @@
                     <tbody class="divide-y divide-gray-100">
                         @foreach ($tickets as $ticket)
                             <tr>
-                                <td class="py-2 font-mono font-bold">{{ $ticket->ticket_number }}</td>
-                                <td class="py-2 text-gray-600">
+                                <td class="py-3">
+                                    <p class="font-mono font-bold text-gray-800">
+                                        {{ $ticket->ticket_number }}
+                                    </p>
+                                    <p class="text-xs text-gray-400 mt-0.5">
+                                        Expires
+                                        <span class="ticket-countdown font-mono"
+                                              data-expires="{{ $ticket->reserved_until->toIso8601String() }}">
+                                        </span>
+                                    </p>
+                                </td>
+                                <td class="py-3 text-gray-600">
                                     {{ $ticket->holderName() ?? Auth::guard('sponsor')->user()->fullName() }}
                                 </td>
-                                <td class="py-2 text-right">₱{{ number_format($raffle->ticket_price, 2) }}</td>
+                                <td class="py-3 text-right">
+                                    ₱{{ number_format($raffle->ticket_price, 2) }}
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -179,28 +181,47 @@
     </div>
 
     <script>
-        const expiresAt = new Date("{{ $earliest->reserved_until->toIso8601String() }}");
+        // Per-ticket countdown
+        function updateCountdowns() {
+            let anyExpired = false;
 
-        function updateCountdown() {
-            const diff = Math.max(0, Math.floor((expiresAt - new Date()) / 1000));
-            const mins = Math.floor(diff / 60).toString().padStart(2, '0');
-            const secs = (diff % 60).toString().padStart(2, '0');
-            const el   = document.getElementById('countdown');
-            el.textContent = `${mins}:${secs}`;
+            document.querySelectorAll('.ticket-countdown').forEach(el => {
+                const expiresAt = new Date(el.dataset.expires);
+                const diff      = Math.max(0, Math.floor((expiresAt - new Date()) / 1000));
 
-            if (diff === 0) {
-                el.textContent = 'Expired';
-                el.classList.remove('text-yellow-600');
-                el.classList.add('text-red-600');
-                // Redirect after 2 seconds
+                if (diff === 0) {
+                    el.textContent = 'Expired';
+                    el.classList.add('text-red-500', 'font-semibold');
+                    anyExpired = true;
+                    return;
+                }
+
+                const mins = Math.floor(diff / 60).toString().padStart(2, '0');
+                const secs = (diff % 60).toString().padStart(2, '0');
+                el.textContent = `in ${mins}:${secs}`;
+
+                // Turn red when under 5 minutes
+                if (diff < 300) {
+                    el.classList.add('text-red-500', 'font-semibold');
+                    el.classList.remove('text-gray-400');
+                } else {
+                    el.classList.add('text-gray-400');
+                }
+            });
+
+            // Redirect only if ALL tickets have expired
+            const allCountdowns = document.querySelectorAll('.ticket-countdown');
+            const expiredCount  = [...allCountdowns].filter(el => el.textContent === 'Expired').length;
+
+            if (expiredCount === allCountdowns.length) {
                 setTimeout(() => {
                     window.location.href = "{{ route('ticket.index', $raffle) }}";
                 }, 2000);
             }
         }
 
-        updateCountdown();
-        setInterval(updateCountdown, 1000);
+        updateCountdowns();
+        setInterval(updateCountdowns, 1000);
 
         function toggleProofFields(type) {
             document.getElementById('field-transaction_number').style.display =

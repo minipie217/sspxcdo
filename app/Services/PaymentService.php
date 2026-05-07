@@ -42,19 +42,7 @@ class PaymentService
                     'holder_first_name' => $useOther ? $firstName : null,
                     'holder_last_name'  => $useOther ? $lastName  : null,
                     'updated_at'        => now(),
-                ]);
-
-            if ($updated) {
-                // Sync ALL existing reservations for this sponsor
-                // to the same expiry time
-                Ticket::where('sponsor_id', $sponsorId)
-                    ->where('status', TicketStatus::Reserved)
-                    ->where('id', '!=', $ticket->id)
-                    ->update([
-                        'reserved_until' => $reservedUntil,
-                        'updated_at'     => now(),
-                    ]);
-            }
+                ]);            
 
             return (bool) $updated;
         });
