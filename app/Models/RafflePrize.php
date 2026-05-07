@@ -12,6 +12,11 @@ class RafflePrize extends Model
         'type',
         'position',
         'name',
+        'prize',
+    ];
+
+    protected $casts = [
+        'prize' => 'decimal:2',
     ];
 
     public function raffle(): BelongsTo

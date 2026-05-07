@@ -6,8 +6,8 @@ use App\Enums\RaffleStatus;
 use App\Jobs\GenerateRaffleTickets;
 use App\Models\Raffle;
 use App\Models\RafflePrize;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class RaffleService
 {
@@ -29,7 +29,6 @@ class RaffleService
 
             $this->createPrizes($raffle, $data);
 
-            // Generate tickets only when status is active
             if ($raffle->status === RaffleStatus::Active) {
                 $raffle->update(['status' => RaffleStatus::Generating]);
 
@@ -48,13 +47,12 @@ class RaffleService
     {
         return DB::transaction(function () use ($raffle, $data) {
 
-            $wasNotActive     = $raffle->status !== RaffleStatus::Active;
-            $isNowActive      = $data['status'] === 'active';
-            $oldTotalTickets  = $raffle->total_tickets;
-            $newTotalTickets  = (int) $data['total_tickets'];
+            $wasNotActive    = $raffle->status !== RaffleStatus::Active;
+            $isNowActive     = $data['status'] === 'active';
+            $newTotalTickets = (int) $data['total_tickets'];
 
-            // Delete prizes first then recreate
-            $raffle->prizes()->forceDelete();
+            // delete() not forceDelete() — RafflePrize has no SoftDeletes
+            $raffle->prizes()->delete();
 
             $raffle->update([
                 'title'         => $data['title'],
@@ -72,18 +70,17 @@ class RaffleService
             $currentTicketCount = $raffle->tickets()->count();
             $needsMoreTickets   = $newTotalTickets > $currentTicketCount;
 
-            // Case 1 — status just changed to active, no tickets yet
-            // Case 2 — already active, total_tickets was increased
-            if ($isNowActive && $needsMoreTickets) {
-                if ($wasNotActive && $currentTicketCount === 0) {
-                    $raffle->update(['status' => RaffleStatus::Generating]);
-                }
+            $prefix = strtoupper(trim($data['ticket_prefix'] ?? ''));
+            $digits = max((int) ($data['ticket_digits'] ?? 4), strlen((string) $newTotalTickets));
 
-                GenerateRaffleTickets::dispatch(
-                    $raffle,
-                    strtoupper(trim($data['ticket_prefix'] ?? '')),
-                    max((int) ($data['ticket_digits'] ?? 4), strlen((string) $newTotalTickets))
-                );
+            // Case 1 — just activated, no tickets yet
+            if ($wasNotActive && $isNowActive && $currentTicketCount === 0) {
+                $raffle->update(['status' => RaffleStatus::Generating]);
+                GenerateRaffleTickets::dispatch($raffle, $prefix, $digits);
+
+            // Case 2 — already active, total tickets increased
+            } elseif ($isNowActive && $needsMoreTickets && $currentTicketCount > 0) {
+                GenerateRaffleTickets::dispatch($raffle, $prefix, $digits);
             }
 
             return $raffle->fresh();
@@ -101,21 +98,25 @@ class RaffleService
 
     private function createPrizes(Raffle $raffle, array $data): void
     {
+        // Main prizes
         foreach ([
-            ['type' => 'first',  'position' => 1, 'key' => 'first_prize'],
-            ['type' => 'second', 'position' => 2, 'key' => 'second_prize'],
-            ['type' => 'third',  'position' => 3, 'key' => 'third_prize'],
+            ['type' => 'first',  'position' => 1, 'key' => 'first_prize',  'amount_key' => 'first_prize_amount'],
+            ['type' => 'second', 'position' => 2, 'key' => 'second_prize', 'amount_key' => 'second_prize_amount'],
+            ['type' => 'third',  'position' => 3, 'key' => 'third_prize',  'amount_key' => 'third_prize_amount'],
         ] as $prize) {
             RafflePrize::create([
                 'raffle_id' => $raffle->id,
                 'type'      => $prize['type'],
                 'position'  => $prize['position'],
                 'name'      => $data[$prize['key']],
+                'prize'     => $data[$prize['amount_key']] ?? null,
             ]);
         }
 
-        $consolationCount = (int) ($data['consolation_count'] ?? 0);
-        $consolationName  = $data['consolation_name'] ?? 'Consolation Prize';
+        // Consolation prizes
+        $consolationCount  = (int) ($data['consolation_count'] ?? 0);
+        $consolationName   = trim($data['consolation_name'] ?? '') ?: 'Consolation Prize';
+        $consolationAmount = $data['consolation_amount'] ?? null;
 
         if ($consolationCount > 0) {
             $now    = now();
@@ -127,12 +128,13 @@ class RaffleService
                     'type'       => 'consolation',
                     'position'   => null,
                     'name'       => "{$consolationName} #{$i}",
+                    'prize'      => $consolationAmount,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
             }
 
-            RafflePrize::insert($buffer); // batch insert — one query for all consolations
+            RafflePrize::insert($buffer);
         }
     }
 }

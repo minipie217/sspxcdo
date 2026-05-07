@@ -26,11 +26,15 @@ class StoreRaffleRequest extends FormRequest
             'ticket_prefix'     => 'nullable|string|max:10',
 
             // Prizes
-            'first_prize'       => 'required|string|max:255',
-            'second_prize'      => 'required|string|max:255',
-            'third_prize'       => 'required|string|max:255',
-            'consolation_count' => 'nullable|integer|min:0|max:1000',
-            'consolation_name'  => 'nullable|string|max:255',
+            'first_prize'         => 'required|string|max:255',
+            'first_prize_amount'  => 'nullable|numeric|min:0',
+            'second_prize'        => 'required|string|max:255',
+            'second_prize_amount' => 'nullable|numeric|min:0',
+            'third_prize'         => 'required|string|max:255',
+            'third_prize_amount'  => 'nullable|numeric|min:0',
+            'consolation_count'   => 'nullable|integer|min:0|max:1000',
+            'consolation_name'    => 'nullable|string|max:255',
+            'consolation_amount'  => 'nullable|numeric|min:0',
 
             // Schedule
             'start_date'        => 'nullable|date',

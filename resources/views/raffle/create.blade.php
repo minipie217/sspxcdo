@@ -134,51 +134,112 @@
                     {{-- -------------------------------------------------- --}}
                     <h3 class="font-semibold text-gray-700 mb-4">Prizes</h3>
 
+                    {{-- 1st prize --}}
                     <div class="mb-4">
-                        <x-input-label for="first_prize" value="1st Prize" />
-                        <x-text-input id="first_prize" name="first_prize" type="text"
-                                      class="mt-1 block w-full"
-                                      :value="old('first_prize')" required />
-                        <x-input-error :messages="$errors->get('first_prize')" class="mt-2" />
+                        <x-input-label value="1st Prize" />
+                        <div class="grid grid-cols-2 gap-3 mt-1">
+                            <div>
+                                <x-text-input name="first_prize" type="text"
+                                            class="block w-full"
+                                            :value="old('first_prize')"
+                                            placeholder="Prize name" required />
+                                <x-input-error :messages="$errors->get('first_prize')" class="mt-1" />
+                            </div>
+                            <div>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-3 flex items-center text-gray-400 text-sm">₱</span>
+                                    <x-text-input name="first_prize_amount" type="number"
+                                                step="0.01" min="0"
+                                                class="block w-full pl-7"
+                                                :value="old('first_prize_amount')"
+                                                placeholder="Amount (optional)" />
+                                </div>
+                                <x-input-error :messages="$errors->get('first_prize_amount')" class="mt-1" />
+                            </div>
+                        </div>
                     </div>
 
+                    {{-- 2nd prize --}}
                     <div class="mb-4">
-                        <x-input-label for="second_prize" value="2nd Prize" />
-                        <x-text-input id="second_prize" name="second_prize" type="text"
-                                      class="mt-1 block w-full"
-                                      :value="old('second_prize')" required />
-                        <x-input-error :messages="$errors->get('second_prize')" class="mt-2" />
+                        <x-input-label value="2nd Prize" />
+                        <div class="grid grid-cols-2 gap-3 mt-1">
+                            <div>
+                                <x-text-input name="second_prize" type="text"
+                                            class="block w-full"
+                                            :value="old('second_prize')"
+                                            placeholder="Prize name" required />
+                                <x-input-error :messages="$errors->get('second_prize')" class="mt-1" />
+                            </div>
+                            <div>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-3 flex items-center text-gray-400 text-sm">₱</span>
+                                    <x-text-input name="second_prize_amount" type="number"
+                                                step="0.01" min="0"
+                                                class="block w-full pl-7"
+                                                :value="old('second_prize_amount')"
+                                                placeholder="Amount (optional)" />
+                                </div>
+                                <x-input-error :messages="$errors->get('second_prize_amount')" class="mt-1" />
+                            </div>
+                        </div>
                     </div>
 
+                    {{-- 3rd prize --}}
                     <div class="mb-4">
-                        <x-input-label for="third_prize" value="3rd Prize" />
-                        <x-text-input id="third_prize" name="third_prize" type="text"
-                                      class="mt-1 block w-full"
-                                      :value="old('third_prize')" required />
-                        <x-input-error :messages="$errors->get('third_prize')" class="mt-2" />
+                        <x-input-label value="3rd Prize" />
+                        <div class="grid grid-cols-2 gap-3 mt-1">
+                            <div>
+                                <x-text-input name="third_prize" type="text"
+                                            class="block w-full"
+                                            :value="old('third_prize')"
+                                            placeholder="Prize name" required />
+                                <x-input-error :messages="$errors->get('third_prize')" class="mt-1" />
+                            </div>
+                            <div>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-3 flex items-center text-gray-400 text-sm">₱</span>
+                                    <x-text-input name="third_prize_amount" type="number"
+                                                step="0.01" min="0"
+                                                class="block w-full pl-7"
+                                                :value="old('third_prize_amount')"
+                                                placeholder="Amount (optional)" />
+                                </div>
+                                <x-input-error :messages="$errors->get('third_prize_amount')" class="mt-1" />
+                            </div>
+                        </div>
                     </div>
 
                     <hr class="my-4">
 
                     {{-- Consolation prizes --}}
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div>
-                            <x-input-label for="consolation_count" value="Number of Consolation Prizes" />
+                            <x-input-label for="consolation_count" value="Consolation Count" />
                             <x-text-input id="consolation_count" name="consolation_count"
-                                          type="number" min="0" max="1000"
-                                          class="mt-1 block w-full"
-                                          :value="old('consolation_count', 0)" />
+                                        type="number" min="0" max="1000"
+                                        class="mt-1 block w-full"
+                                        :value="old('consolation_count', 0)" />
                             <x-input-error :messages="$errors->get('consolation_count')" class="mt-2" />
                         </div>
                         <div>
                             <x-input-label for="consolation_name" value="Consolation Prize Name" />
-                            <x-text-input id="consolation_name" name="consolation_name" type="text"
-                                          class="mt-1 block w-full"
-                                          :value="old('consolation_name', 'Consolation Prize')" />
-                            <p class="text-xs text-gray-400 mt-1">
-                                e.g. "Consolation Prize" → Consolation Prize #1, #2...
-                            </p>
+                            <x-text-input id="consolation_name" name="consolation_name"
+                                        type="text" class="mt-1 block w-full"
+                                        :value="old('consolation_name', 'Consolation Prize')"
+                                        placeholder="e.g. Consolation Prize" />
                             <x-input-error :messages="$errors->get('consolation_name')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="consolation_amount" value="Consolation Prize Amount" />
+                            <div class="relative mt-1">
+                                <span class="absolute inset-y-0 left-3 flex items-center text-gray-400 text-sm">₱</span>
+                                <x-text-input id="consolation_amount" name="consolation_amount"
+                                            type="number" step="0.01" min="0"
+                                            class="block w-full pl-7"
+                                            :value="old('consolation_amount')"
+                                            placeholder="Amount (optional)" />
+                            </div>
+                            <x-input-error :messages="$errors->get('consolation_amount')" class="mt-2" />
                         </div>
                     </div>
 

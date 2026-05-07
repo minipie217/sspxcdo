@@ -95,17 +95,25 @@
                                     default  => $prize->type,
                                 } }}
                             </span>
-                            <span class="font-medium">{{ $prize->name }}</span>
+                            <span class="font-medium">{{ peso($prize->name)}}</span>
                         </div>
                     @endforeach
 
+                    {{-- Consolation prizes --}}
                     @php $consolations = $raffle->prizes->where('type', 'consolation'); @endphp
 
                     @if ($consolations->isNotEmpty())
                         <hr class="my-3">
-                        <p class="text-sm text-gray-400 mb-2">
-                            Consolation Prizes ({{ $consolations->count() }})
-                        </p>
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-sm text-gray-400">
+                                Consolation Prizes ({{ $consolations->count() }})
+                            </p>
+                            @if ($consolations->first()?->prize)
+                                <span class="text-sm font-bold text-indigo-600">
+                                    {{ peso($consolations->first()->prize) }} each
+                                </span>
+                            @endif
+                        </div>
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
                             @foreach ($consolations as $prize)
                                 <div class="flex items-center gap-2 text-sm">
