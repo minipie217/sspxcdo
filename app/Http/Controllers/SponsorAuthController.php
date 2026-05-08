@@ -75,6 +75,9 @@ class SponsorAuthController extends Controller
                 ->withErrors(['otp' => 'Invalid or expired code. Please try again.']);
         }
 
+        // Clear admin session before logging in as sponsor
+        Auth::guard('web')->logout();
+
         Auth::guard('sponsor')->login($sponsor, remember: true);
 
         return redirect()->intended(route('raffle.index'))

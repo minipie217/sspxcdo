@@ -81,7 +81,9 @@ class AdminAuthController extends Controller
                 ->withErrors(['otp' => 'Invalid or expired code. Please try again.']);
         }
 
-        Auth::login($user, remember: true);
+        // Clear sponsor session before logging in as admin
+        Auth::guard('sponsor')->logout();
+        Auth::guard('web')->login($user, remember: true);
 
         return redirect()->intended(route('dashboard'))
             ->with('success', "Welcome back, {$user->name}!");
