@@ -28,11 +28,31 @@ class DashboardController extends Controller
         // Registered sponsors
         $totalSponsors = Sponsor::count();
 
+        // Pending payments
+        $pendingPayments = TicketPayment::where('status', 'pending')->count();
+
+
+        // Reserved tickets expiring soon (within 10 minutes)
+        $expiringReservations = Ticket::where('status', TicketStatus::Reserved)
+            ->where('reserved_until', '>', now())
+            ->where('reserved_until', '<', now()->addMinutes(10))
+            ->whereDoesntHave('payment', fn($q) => $q->where('status', 'pending'))
+            ->count();
+
+        // Generating raffles
+        $generatingRaffles = Raffle::where('status', RaffleStatus::Generating)->count();    
+
         return view('dashboard', compact(
             'totalFunds',
             'activeRaffles',
             'ticketsSold',
             'totalSponsors',
+            'pendingPayments',
+            'expiringReservations',
+            'generatingRaffles',
         ));
+
+        
+
     }
 }
