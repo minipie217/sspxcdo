@@ -1,9 +1,8 @@
 <?php
 
-
 if (! function_exists('peso')) {
-    function peso($amount): string
+    function peso(int|float|string|null $amount): string
     {
-        return '₱' . number_format((float) $amount, 2);
+        return '₱' . number_format((float) ($amount ?? 0), 2);
     }
 }

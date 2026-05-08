@@ -141,7 +141,7 @@
                             <div>
                                 <x-text-input name="first_prize" type="text"
                                             class="block w-full"
-                                            :value="old('first_prize')"
+                                            :value="old('first_prize', $firstPrize?->name ?? 'First Prize')"
                                             placeholder="Prize name" required />
                                 <x-input-error :messages="$errors->get('first_prize')" class="mt-1" />
                             </div>
@@ -166,7 +166,7 @@
                             <div>
                                 <x-text-input name="second_prize" type="text"
                                             class="block w-full"
-                                            :value="old('second_prize')"
+                                            :value="old('second_prize', $secondPrize?->name ?? 'Second Prize')"
                                             placeholder="Prize name" required />
                                 <x-input-error :messages="$errors->get('second_prize')" class="mt-1" />
                             </div>
@@ -191,7 +191,7 @@
                             <div>
                                 <x-text-input name="third_prize" type="text"
                                             class="block w-full"
-                                            :value="old('third_prize')"
+                                            :value="old('third_prize', $thirdPrize?->name ?? 'Third Prize')"
                                             placeholder="Prize name" required />
                                 <x-input-error :messages="$errors->get('third_prize')" class="mt-1" />
                             </div>

@@ -95,7 +95,7 @@
                                     default  => $prize->type,
                                 } }}
                             </span>
-                            <span class="font-medium">{{ peso($prize->name)}}</span>
+                            <span class="font-medium">{{ peso($prize->prize)}}</span>
                         </div>
                     @endforeach
 

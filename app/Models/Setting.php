@@ -11,6 +11,8 @@ class Setting extends Model
         'value',
         'label',
         'group',
+        'site_name',
+        'logo',
     ];
 
     public static function get(string $key, mixed $default = null): mixed

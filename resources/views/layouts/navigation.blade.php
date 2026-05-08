@@ -6,8 +6,23 @@
             <div class="flex">
                 {{-- Logo --}}
                 <div class="shrink-0 flex items-center">
-                    <a href="{{ route('raffle.index') }}">
-                        <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
+                    <a href="{{ route('raffle.index') }}" class="flex items-center gap-2">
+                        @php
+                            $siteLogo = \App\Models\Setting::get('site_logo');
+                            $siteName = \App\Models\Setting::get('site_name', config('app.name'));
+                        @endphp
+
+                        @if ($siteLogo)
+                            <img src="{{ Storage::url($siteLogo) }}"
+                                alt="{{ $siteName }}"
+                                class="block h-9 w-auto object-contain" />
+                        @else
+                            <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
+                        @endif
+
+                        <span class="text-sm font-semibold text-gray-800 hidden sm:block">
+                            {{ $siteName }}
+                        </span>
                     </a>
                 </div>
 
