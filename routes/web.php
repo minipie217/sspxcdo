@@ -8,6 +8,7 @@ use App\Http\Controllers\RaffleController;
 use App\Http\Controllers\SponsorAuthController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TicketPaymentController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 // -------------------------------------------------------------------------
@@ -41,7 +42,7 @@ Route::post('/admin/logout', [AdminAuthController::class, 'logout'])->name('admi
 // -------------------------------------------------------------------------
 
 Route::middleware('admin')->group(function () {
-    Route::get('/dashboard', fn() => view('dashboard'))->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Profile
     Route::get('/profile',                  [ProfileController::class, 'edit'])->name('profile.edit');
