@@ -6,7 +6,7 @@
             <div class="flex">
                 {{-- Logo --}}
                 <div class="shrink-0 flex items-center">
-                    <a href="{{ route('raffle.index') }}" class="flex items-center gap-2">
+                    <a href="{{ route('home') }}" class="flex items-center gap-2">
                         @php
                             $siteLogo = \App\Models\Setting::get('site_logo');
                             $siteName = \App\Models\Setting::get('site_name', config('app.name'));

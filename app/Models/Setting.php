@@ -22,6 +22,10 @@ class Setting extends Model
 
     public static function set(string $key, mixed $value): void
     {
-        static::where('key', $key)->update(['value' => $value]);
+        $setting = static::firstOrNew(['key' => $key]);
+        $setting->value = $value;
+        $setting->label ??= str($key)->replace('_', ' ')->title();
+        $setting->group ??= 'general';
+        $setting->save();
     }
 }

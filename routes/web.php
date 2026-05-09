@@ -9,13 +9,22 @@ use App\Http\Controllers\SponsorAuthController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TicketPaymentController;
 use App\Http\Controllers\DashboardController;
+use App\Models\Setting;
+use App\Services\HomepageLayoutService;
 use Illuminate\Support\Facades\Route;
 
 // -------------------------------------------------------------------------
 // Public
 // -------------------------------------------------------------------------
 
-Route::get('/', fn() => view('welcome'));
+Route::get('/', function () {
+    $settings = Setting::whereIn('group', ['general', 'homepage'])
+        ->pluck('value', 'key')
+        ->all();
+    $homeLayout = app(HomepageLayoutService::class)->read();
+
+    return view('welcome', compact('settings', 'homeLayout'));
+})->name('home');
 
 Route::get('/raffle', [RaffleController::class, 'index'])->name('raffle.index');
 
