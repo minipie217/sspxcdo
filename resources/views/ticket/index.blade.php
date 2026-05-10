@@ -99,38 +99,54 @@
                                     @if ($ticket->status->value === 'available')
 
                                         @if (Auth::guard('sponsor')->check())
-                                            {{-- Inline buy form --}}
-                                            <div x-data="{ useDifferentName: false }" class="space-y-2">
-                                                <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-                                                    <input type="checkbox" x-model="useDifferentName"
-                                                           class="rounded border-gray-300 text-indigo-600">
-                                                    <span>Use a different name</span>
-                                                </label>
+                                            @php
+                                                $max = \App\Models\Setting::get('max_tickets_per_sponsor', 5);
+                                                $sponsorCount   = $raffle->tickets()
+                                                    ->where('sponsor_id', Auth::guard('sponsor')->id())
+                                                    ->whereIn('status', ['reserved', 'sold'])
+                                                    ->count();
+                                                $limitReached   = $sponsorCount >= $max;
+                                            @endphp
 
-                                                <form method="POST"
-                                                      action="{{ route('ticket.reserve', [$raffle, $ticket]) }}"
-                                                      class="space-y-2">
-                                                    @csrf
-                                                    <input type="hidden" name="use_other_name"
-                                                           :value="useDifferentName ? '1' : '0'">
+                                            @if ($limitReached)
+                                                <span class="text-xs text-gray-400">
+                                                    Limit reached ({{ $max }})
+                                                </span>
+                                            @else
 
-                                                    <div x-show="useDifferentName" x-cloak class="space-y-1">
-                                                        <input type="text"
-                                                               name="holder_first_name"
-                                                               placeholder="First name"
-                                                               class="w-full px-2 py-1 border border-gray-300 rounded-md text-xs" />
-                                                        <input type="text"
-                                                               name="holder_last_name"
-                                                               placeholder="Last name"
-                                                               class="w-full px-2 py-1 border border-gray-300 rounded-md text-xs" />
-                                                    </div>
+                                                {{-- Inline buy form --}}
+                                                <div x-data="{ useDifferentName: false }" class="space-y-2">
+                                                    <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                                                        <input type="checkbox" x-model="useDifferentName"
+                                                            class="rounded border-gray-300 text-indigo-600">
+                                                        <span>Use a different name</span>
+                                                    </label>
 
-                                                    <button type="submit"
-                                                            class="w-full px-3 py-1.5 bg-green-500 hover:bg-green-700 text-white text-xs font-semibold rounded-md">
-                                                        Buy Ticket
-                                                    </button>
-                                                </form>
-                                            </div>
+                                                    <form method="POST"
+                                                        action="{{ route('ticket.reserve', [$raffle, $ticket]) }}"
+                                                        class="space-y-2">
+                                                        @csrf
+                                                        <input type="hidden" name="use_other_name"
+                                                            :value="useDifferentName ? '1' : '0'">
+
+                                                        <div x-show="useDifferentName" x-cloak class="space-y-1">
+                                                            <input type="text"
+                                                                name="holder_first_name"
+                                                                placeholder="First name"
+                                                                class="w-full px-2 py-1 border border-gray-300 rounded-md text-xs" />
+                                                            <input type="text"
+                                                                name="holder_last_name"
+                                                                placeholder="Last name"
+                                                                class="w-full px-2 py-1 border border-gray-300 rounded-md text-xs" />
+                                                        </div>
+
+                                                        <button type="submit"
+                                                                class="w-full px-3 py-1.5 bg-green-500 hover:bg-green-700 text-white text-xs font-semibold rounded-md">
+                                                            Buy Ticket
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            @endif
 
                                         @else
                                             {{-- Guest --}}
@@ -173,7 +189,11 @@
                                             </form>
                                         </div>
                                     @else
-                                        {{ $ticket->reserved_until?->format('M d, H:i') ?? '—' }}
+                                        @if ($ticket->status->value === 'sold')
+                                            —
+                                        @else
+                                            {{ $ticket->reserved_until?->format('M d, H:i') ?? '—' }}
+                                        @endif
                                     @endif                                    
                                 </td>
                             </tr>

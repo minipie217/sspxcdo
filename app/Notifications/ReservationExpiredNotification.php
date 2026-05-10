@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Ticket;
+use App\Services\EmailTemplateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -32,13 +33,14 @@ class ReservationExpiredNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $template = app(EmailTemplateService::class)->render('reservation_expired', [
+            'name'          => $notifiable->first_name,
+            'ticket_number' => $this->ticket->ticket_number,
+        ]);
+
         return (new MailMessage)
-            ->subject('Your Ticket Reservation Has Expired')
-            ->greeting("Hello {$notifiable->first_name},")
-            ->line("Your reservation for ticket **{$this->ticket->ticket_number}** has expired.")
-            ->line('The ticket has been released back to the available pool.')
-            ->line('You may reserve it again if it is still available.')
-            ->action('Browse Tickets', url("/raffle/{$this->ticket->raffle_id}/tickets"));
+            ->subject($template['subject'])
+            ->view('emails.template', ['body' => $template['body']]);
     }
 
     /**

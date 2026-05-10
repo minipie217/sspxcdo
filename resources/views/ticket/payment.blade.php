@@ -74,44 +74,40 @@
                 </p>
 
                 <div class="space-y-3">
-                    @foreach (['bdo', 'bpi', 'metrobank', 'unionbank'] as $bank)
-                        @if ($instructions[$bank]['account_number'])
-                            <div class="p-4 border rounded-lg">
-                                <p class="font-semibold text-gray-700">{{ $instructions[$bank]['label'] }}</p>
-                                <p class="text-sm text-gray-500 mt-1">
-                                    Account Name:
-                                    <span class="font-medium text-gray-800">{{ $instructions[$bank]['account_name'] }}</span>
-                                </p>
-                                <p class="text-sm text-gray-500">
-                                    Account Number:
-                                    <span class="font-mono font-bold text-gray-800">{{ $instructions[$bank]['account_number'] }}</span>
-                                </p>
-                            </div>
-                        @endif
-                    @endforeach
-
-                    @foreach (['gcash', 'maya'] as $wallet)
-                        @if ($instructions[$wallet]['number'])
-                            <div class="p-4 border rounded-lg">
-                                <p class="font-semibold text-gray-700">{{ $instructions[$wallet]['label'] }}</p>
-                                <p class="text-sm text-gray-500 mt-1">
-                                    Name:
-                                    <span class="font-medium text-gray-800">{{ $instructions[$wallet]['name'] }}</span>
-                                </p>
-                                <p class="text-sm text-gray-500">
-                                    Number:
-                                    <span class="font-mono font-bold text-gray-800">{{ $instructions[$wallet]['number'] }}</span>
-                                </p>
-                            </div>
-                        @endif
-                    @endforeach
-
-                    @if ($instructions['other']['label'])
+                    @forelse ($instructions as $account)
                         <div class="p-4 border rounded-lg">
-                            <p class="font-semibold text-gray-700">{{ $instructions['other']['label'] }}</p>
-                            <p class="text-sm text-gray-500 mt-1">{{ $instructions['other']['details'] }}</p>
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <p class="font-semibold text-gray-700">
+                                        {{ $account['icon'] }} {{ $account['label'] }}
+                                    </p>
+                                    @if ($account['account_name'])
+                                        <p class="text-sm text-gray-500 mt-1">
+                                            Account Name:
+                                            <span class="font-medium text-gray-800">
+                                                {{ $account['account_name'] }}
+                                            </span>
+                                        </p>
+                                    @endif
+                                    @if ($account['account_number'])
+                                        <p class="text-sm text-gray-500">
+                                            Account Number:
+                                            <span class="font-mono font-bold text-gray-800">
+                                                {{ $account['account_number'] }}
+                                            </span>
+                                        </p>
+                                    @endif
+                                </div>
+                                @if ($account['qr_code'])
+                                    <img src="{{ Storage::url($account['qr_code']) }}"
+                                        alt="{{ $account['label'] }} QR"
+                                        class="h-32 w-32 md:h-48 md:w-48 object-contain border rounded-lg p-2 bg-white shrink-0" />
+                                @endif
+                            </div>
                         </div>
-                    @endif
+                    @empty
+                        <p class="text-sm text-gray-400">No payment accounts configured yet.</p>
+                    @endforelse
                 </div>
             </div>
 

@@ -32,6 +32,13 @@
                             class="px-6 py-3 text-sm font-medium focus:outline-none">
                         🏦 Payment Accounts
                     </button>
+                    <button @click="tab = 'emails'"
+                            :class="tab === 'emails'
+                                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                                : 'text-gray-500 hover:text-gray-700'"
+                            class="px-6 py-3 text-sm font-medium focus:outline-none">
+                        ✉️ Email Templates
+                    </button>
                     <button @click="tab = 'homepage'"
                             :class="tab === 'homepage'
                                 ? 'border-b-2 border-indigo-600 text-indigo-600'
@@ -76,19 +83,20 @@
                                 <div>
                                     <x-input-label value="Site Logo" />
 
-                                    {{-- Current logo preview --}}
                                     @if ($siteLogoSetting?->value)
                                         <div class="mt-2 mb-3 flex items-center gap-4">
                                             <img src="{{ Storage::url($siteLogoSetting->value) }}"
                                                 alt="Current logo"
                                                 class="h-12 w-auto object-contain border rounded p-1 bg-gray-50" />
                                             <div>
-                                                <p class="text-xs text-gray-500">Current logo</p>
-                                                <label class="flex items-center gap-2 mt-1 cursor-pointer">
-                                                    <input type="checkbox" name="settings[remove_logo]" value="1"
-                                                        class="rounded border-gray-300 text-red-600">
-                                                    <span class="text-xs text-red-500">Remove logo</span>
-                                                </label>
+                                                <p class="text-xs text-gray-500 mb-2">Current logo</p>
+
+                                                {{-- Delete button --}}
+                                                <button type="button"
+                                                        onclick="deleteItem('{{ route('admin.settings.logo.delete') }}', 'Remove this logo?')"
+                                                        class="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-semibold rounded-md hover:bg-red-100 border border-red-200">
+                                                    🗑 Remove Logo
+                                                </button>
                                             </div>
                                         </div>
                                     @endif
@@ -151,6 +159,38 @@
 
                             <hr>
 
+                            {{-- Max tickets per sponsor --}}
+                            <div>
+                                <h3 class="font-semibold text-gray-700 mb-1">Ticket Limit</h3>
+                                <p class="text-sm text-gray-400 mb-4">
+                                    Maximum number of tickets a single sponsor can reserve per raffle.
+                                </p>
+
+                                @php
+                                    $maxTicketsSetting = $groups->get('general')
+                                        ?->firstWhere('key', 'max_tickets_per_sponsor');
+                                @endphp
+
+                                <div>
+                                    <x-input-label for="max_tickets_per_sponsor" value="Max Tickets Per Sponsor" />
+                                    <div class="mt-1 flex items-center gap-3">
+                                        <x-text-input id="max_tickets_per_sponsor"
+                                                    name="settings[max_tickets_per_sponsor]"
+                                                    type="number"
+                                                    min="1"
+                                                    max="100"
+                                                    class="block w-40"
+                                                    :value="old('settings.max_tickets_per_sponsor', $maxTicketsSetting?->value ?? 5)" />
+                                        <span class="text-sm text-gray-500">tickets per raffle</span>
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-1">
+                                        e.g. 5 = each sponsor can reserve up to 5 tickets per raffle.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <hr>
+
                             {{-- Recent Updates Limit --}}
                             <div>
                                 <h3 class="font-semibold text-gray-700 mb-1">Recent Updates</h3>
@@ -183,104 +223,360 @@
 
                         </div>
 
-                        <div class="flex justify-end mt-4">
-                            <x-primary-button>Save General Settings</x-primary-button>
+                        <div class="sticky bottom-4 z-50 mt-6 flex justify-end pointer-events-none">
+                            <div class="pointer-events-auto rounded-2xl bg-white/90 backdrop-blur-md border border-gray-200 shadow-2xl px-4 py-3">
+                                <x-primary-button>Save General Settings</x-primary-button>
+                            </div>
                         </div>
                     </form>
                 </div>
 
                 {{-- Payment Accounts --}}
                 <div x-show="tab === 'payment'" x-cloak>
-                    <form method="POST" action="{{ route('admin.settings.update') }}">
-                        @csrf
-                        <input type="hidden" name="tab" value="payment">
 
-                        <div class="space-y-4">
+                    {{-- Existing accounts --}}
+                    <div class="space-y-3 mb-6">
+                        @forelse ($paymentAccounts as $account)
+                            <div x-data="{ open: false }"
+                                class="bg-white shadow-sm sm:rounded-lg overflow-hidden">
 
-                            @foreach (['bdo', 'bpi', 'metrobank', 'unionbank'] as $bank)
-                                @php
-                                    $bankSettings = $groups->get($bank);
-                                    $label = strtoupper($bank);
-                                @endphp
-
-                                @if ($bankSettings)
-                                    <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                                        <h3 class="font-semibold text-gray-700 mb-4">🏦 {{ $label }}</h3>
-                                        <div class="space-y-4">
-                                            @foreach ($bankSettings as $setting)
-                                                <div>
-                                                    <x-input-label
-                                                        :for="$setting->key"
-                                                        :value="$setting->label" />
-                                                    <x-text-input
-                                                        :id="$setting->key"
-                                                        :name="'settings[' . $setting->key . ']'"
-                                                        type="text"
-                                                        class="mt-1 block w-full"
-                                                        :value="old('settings.' . $setting->key, $setting->value)" />
-                                                </div>
-                                            @endforeach
+                                {{-- Account header --}}
+                                <div class="px-6 py-4 flex items-center justify-between">
+                                    <button @click="open = !open"
+                                            type="button"
+                                            class="flex items-center gap-3 flex-1 text-left">
+                                        <span class="text-lg">{{ $account->typeIcon() }}</span>
+                                        <div>
+                                            <p class="font-semibold text-gray-800">{{ $account->label }}</p>
+                                            <p class="text-xs text-gray-400 mt-0.5">
+                                                {{ $account->typeLabel() }}
+                                                @if ($account->account_number)
+                                                    · {{ $account->account_number }}
+                                                @endif
+                                            </p>
                                         </div>
-                                    </div>
-                                @endif
-                            @endforeach
+                                        <span @class([
+                                            'ml-2 px-2 py-0.5 text-xs rounded-full font-semibold',
+                                            'bg-green-100 text-green-700' => $account->is_active,
+                                            'bg-gray-100 text-gray-500'   => ! $account->is_active,
+                                        ])>
+                                            {{ $account->is_active ? 'Active' : 'Inactive' }}
+                                        </span>
+                                    </button>
 
-                            @foreach (['gcash', 'maya'] as $wallet)
-                                @php
-                                    $walletSettings = $groups->get($wallet);
-                                    $label = ucfirst($wallet);
-                                @endphp
-
-                                @if ($walletSettings)
-                                    <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                                        <h3 class="font-semibold text-gray-700 mb-4">📱 {{ $label }}</h3>
-                                        <div class="space-y-4">
-                                            @foreach ($walletSettings as $setting)
-                                                <div>
-                                                    <x-input-label
-                                                        :for="$setting->key"
-                                                        :value="$setting->label" />
-                                                    <x-text-input
-                                                        :id="$setting->key"
-                                                        :name="'settings[' . $setting->key . ']'"
-                                                        type="text"
-                                                        class="mt-1 block w-full"
-                                                        :value="old('settings.' . $setting->key, $setting->value)" />
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                @endif
-                            @endforeach
-
-                            @php $otherSettings = $groups->get('other'); @endphp
-                            @if ($otherSettings)
-                                <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                                    <h3 class="font-semibold text-gray-700 mb-4">💳 Other</h3>
-                                    <div class="space-y-4">
-                                        @foreach ($otherSettings as $setting)
-                                            <div>
-                                                <x-input-label
-                                                    :for="$setting->key"
-                                                    :value="$setting->label" />
-                                                <x-text-input
-                                                    :id="$setting->key"
-                                                    :name="'settings[' . $setting->key . ']'"
-                                                    type="text"
-                                                    class="mt-1 block w-full"
-                                                    :value="old('settings.' . $setting->key, $setting->value)" />
-                                            </div>
-                                        @endforeach
+                                    <div class="flex items-center gap-2 ml-4">
+                                        <button @click="open = !open" type="button"
+                                                class="px-3 py-1.5 bg-gray-50 text-gray-600 text-xs font-semibold rounded-md hover:bg-gray-100 border border-gray-200">
+                                            Edit
+                                        </button>
+                                        <button type="button"
+                                                onclick="deleteItem('{{ route('admin.payment-accounts.destroy', $account) }}', 'Delete this payment account?')"
+                                                class="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-semibold rounded-md hover:bg-red-100 border border-red-200">
+                                            Delete
+                                        </button>
                                     </div>
                                 </div>
-                            @endif
 
-                        </div>
+                                {{-- Edit form --}}
+                                <div x-show="open"
+                                    x-transition
+                                    class="border-t">
+                                    <form method="POST"
+                                        action="{{ route('admin.payment-accounts.update', $account) }}"
+                                        enctype="multipart/form-data"
+                                        class="px-6 py-4 space-y-4">
+                                        @csrf
+                                        @method('PUT')
 
-                        <div class="flex justify-end mt-4">
-                            <x-primary-button>Save Payment Accounts</x-primary-button>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <x-input-label value="Type" />
+                                                <select name="type"
+                                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                                                    @foreach (\App\Models\PaymentAccount::typeLabels() as $value => $label)
+                                                        <option value="{{ $value }}"
+                                                                @selected($account->type === $value)>
+                                                            {{ $label }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <x-input-label value="Label" />
+                                                <x-text-input name="label" type="text"
+                                                            class="mt-1 block w-full"
+                                                            :value="$account->label" />
+                                            </div>
+                                            <div>
+                                                <x-input-label value="Account Name" />
+                                                <x-text-input name="account_name" type="text"
+                                                            class="mt-1 block w-full"
+                                                            :value="$account->account_name" />
+                                            </div>
+                                            <div>
+                                                <x-input-label value="Account Number" />
+                                                <x-text-input name="account_number" type="text"
+                                                            class="mt-1 block w-full"
+                                                            :value="$account->account_number" />
+                                            </div>
+                                        </div>
+
+                                        {{-- Active toggle --}}
+                                        <div class="flex items-center gap-3">
+                                            <input type="checkbox" name="is_active" value="1"
+                                                id="is_active_{{ $account->id }}"
+                                                class="rounded border-gray-300 text-indigo-600"
+                                                {{ $account->is_active ? 'checked' : '' }}>
+                                            <label for="is_active_{{ $account->id }}"
+                                                class="text-sm text-gray-700">
+                                                Active — show on payment page
+                                            </label>
+                                        </div>
+
+                                        {{-- QR Code --}}
+                                        <div>
+                                            <x-input-label value="QR Code" />
+                                            @if ($account->qr_code)
+                                                <div class="mt-2 mb-3 flex items-start gap-4">
+                                                    <img src="{{ Storage::url($account->qr_code) }}"
+                                                        alt="QR Code"
+                                                        class="h-24 w-24 object-contain border rounded-lg p-1 bg-white" />
+                                                    <button type="button"
+                                                            onclick="deleteItem('{{ route('admin.payment-accounts.qr.delete', $account) }}', 'Remove this QR code?')"
+                                                            class="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-semibold rounded-md hover:bg-red-100 border border-red-200">
+                                                        🗑 Remove QR
+                                                    </button>
+                                                </div>
+                                            @endif
+                                            <input type="file" name="qr_code"
+                                                accept=".jpg,.jpeg,.png,.svg"
+                                                class="mt-1 block w-full text-sm text-gray-500
+                                                        file:mr-4 file:py-2 file:px-4 file:rounded-md
+                                                        file:border-0 file:text-sm file:font-semibold
+                                                        file:bg-indigo-50 file:text-indigo-700
+                                                        hover:file:bg-indigo-100" />
+                                            <p class="text-xs text-gray-400 mt-1">JPG, PNG or SVG. Max 2MB.</p>
+                                        </div>
+
+                                        <div class="flex justify-end">
+                                            <x-primary-button>Update Account</x-primary-button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="bg-white shadow-sm sm:rounded-lg p-6 text-center text-gray-400">
+                                No payment accounts yet. Add one below.
+                            </div>
+                        @endforelse
+                    </div>
+
+                    {{-- Add new account --}}
+                    <div x-data="{ open: false }" class="bg-white shadow-sm sm:rounded-lg overflow-hidden">
+                        <button @click="open = !open"
+                                type="button"
+                                class="w-full px-6 py-4 flex items-center gap-3 text-left hover:bg-gray-50">
+                            <span class="text-lg">➕</span>
+                            <p class="font-semibold text-indigo-600">Add Payment Account</p>
+                        </button>
+
+                        <div x-show="open" x-transition class="border-t">
+                            <form method="POST"
+                                action="{{ route('admin.payment-accounts.store') }}"
+                                enctype="multipart/form-data"
+                                class="px-6 py-4 space-y-4">
+                                @csrf
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <x-input-label value="Type" />
+                                        <select name="type"
+                                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
+                                            <option value="">— select type —</option>
+                                            @foreach (\App\Models\PaymentAccount::typeLabels() as $value => $label)
+                                                <option value="{{ $value }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <x-input-label value="Label" />
+                                        <x-text-input name="label" type="text"
+                                                    class="mt-1 block w-full"
+                                                    placeholder="e.g. BDO Savings Account" required />
+                                    </div>
+                                    <div>
+                                        <x-input-label value="Account Name" />
+                                        <x-text-input name="account_name" type="text"
+                                                    class="mt-1 block w-full"
+                                                    placeholder="e.g. SSPX CDO" />
+                                    </div>
+                                    <div>
+                                        <x-input-label value="Account Number" />
+                                        <x-text-input name="account_number" type="text"
+                                                    class="mt-1 block w-full"
+                                                    placeholder="e.g. 1234567890" />
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-3">
+                                    <input type="checkbox" name="is_active" value="1"
+                                        id="new_is_active"
+                                        class="rounded border-gray-300 text-indigo-600"
+                                        checked>
+                                    <label for="new_is_active" class="text-sm text-gray-700">
+                                        Active — show on payment page
+                                    </label>
+                                </div>
+
+                                <div>
+                                    <x-input-label value="QR Code (optional)" />
+                                    <input type="file" name="qr_code"
+                                        accept=".jpg,.jpeg,.png,.svg"
+                                        class="mt-1 block w-full text-sm text-gray-500
+                                                file:mr-4 file:py-2 file:px-4 file:rounded-md
+                                                file:border-0 file:text-sm file:font-semibold
+                                                file:bg-indigo-50 file:text-indigo-700
+                                                hover:file:bg-indigo-100" />
+                                    <p class="text-xs text-gray-400 mt-1">JPG, PNG or SVG. Max 2MB.</p>
+                                </div>
+
+                                <div class="flex justify-end">
+                                    <x-primary-button>Add Account</x-primary-button>
+                                </div>
+                            </form>
                         </div>
-                    </form>
+                    </div>
+
+                </div>
+
+                {{-- Email Templates --}}
+                <div x-show="tab === 'emails'" x-cloak>
+
+                    @php
+                        $placeholders = [
+                            'sponsor_registration_otp' => ['{name}', '{otp}'],
+                            'sponsor_login_otp'        => ['{name}', '{otp}'],
+                            'admin_otp'                => ['{name}', '{otp}'],
+                            'reservation_expired'      => ['{name}', '{ticket_number}'],
+                            'payment_received'         => ['{admin_name}', '{ticket_number}', '{sponsor_name}', '{raffle_title}'],
+                            'payment_confirmed'        => ['{name}', '{ticket_number}', '{raffle_title}', '{draw_date}'],
+                            'payment_rejected'         => ['{name}', '{ticket_number}', '{rejection_reason}'],
+                            'raffle_created'           => ['{name}', '{raffle_title}', '{raffle_description}', '{ticket_price}', '{draw_date}', '{raffle_url}'],
+                        ];
+                    @endphp
+
+                    <div class="space-y-2">
+                        @foreach ($emailTemplates as $index => $template)
+                            <div x-data="{ open: false }"
+                                class="bg-white shadow-sm sm:rounded-lg overflow-hidden">
+
+                                {{-- Accordion header --}}
+                                <button @click="open = !open"
+                                        type="button"
+                                        class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition">
+                                    <div>
+                                        <p class="font-semibold text-gray-800">{{ $template->label }}</p>
+                                        <p class="text-xs text-gray-400 mt-0.5 truncate max-w-md">
+                                            Subject: {{ $template->subject }}
+                                        </p>
+                                    </div>
+                                    <div class="flex items-center gap-3 shrink-0 ml-4">
+                                        {{-- Placeholders --}}
+                                        @if (isset($placeholders[$template->key]))
+                                            <div class="hidden md:flex items-center gap-1 flex-wrap">
+                                                @foreach ($placeholders[$template->key] as $placeholder)
+                                                    <code class="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded cursor-pointer"
+                                                        @click.stop="
+                                                            if (editors[{{ $template->id }}]) {
+                                                                const range = editors[{{ $template->id }}].getSelection(true);
+                                                                editors[{{ $template->id }}].insertText(range.index, '{{ $placeholder }}');
+                                                                document.getElementById('body_{{ $template->id }}').value =
+                                                                    editors[{{ $template->id }}].root.innerHTML;
+                                                            }
+                                                        ">
+                                                        {{ $placeholder }}
+                                                    </code>
+                                                @endforeach
+                                            </div>
+                                        @endif
+
+                                        {{-- Chevron --}}
+                                        <svg :class="open ? 'rotate-180' : ''"
+                                            class="w-5 h-5 text-gray-400 transition-transform duration-200"
+                                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+                                </button>
+
+                                {{-- Accordion body --}}
+                                <div x-show="open"
+                                    x-transition:enter="transition ease-out duration-200"
+                                    x-transition:enter-start="opacity-0 -translate-y-1"
+                                    x-transition:enter-end="opacity-100 translate-y-0"
+                                    x-transition:leave="transition ease-in duration-150"
+                                    x-transition:leave-start="opacity-100 translate-y-0"
+                                    x-transition:leave-end="opacity-0 -translate-y-1">
+
+                                    <form method="POST"
+                                        action="{{ route('admin.email-templates.update', $template) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="tab" value="emails">
+
+                                        <div class="px-6 pb-4 space-y-4 border-t">
+
+                                            {{-- Mobile placeholders --}}
+                                            @if (isset($placeholders[$template->key]))
+                                                <div class="md:hidden pt-4">
+                                                    <p class="text-xs text-gray-400 mb-2">Placeholders — click to insert:</p>
+                                                    <div class="flex flex-wrap gap-2">
+                                                        @foreach ($placeholders[$template->key] as $placeholder)
+                                                            <code class="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded cursor-pointer"
+                                                                onclick="insertPlaceholder({{ $template->id }}, '{{ $placeholder }}')">
+                                                                {{ $placeholder }}
+                                                            </code>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                            @endif
+
+                                            {{-- Subject --}}
+                                            <div class="pt-4">
+                                                <x-input-label for="subject_{{ $template->id }}" value="Subject" />
+                                                <x-text-input id="subject_{{ $template->id }}"
+                                                            name="subject"
+                                                            type="text"
+                                                            class="mt-1 block w-full"
+                                                            :value="old('subject', $template->subject)" />
+                                            </div>
+
+                                            {{-- Body --}}
+                                            <div>
+                                                <x-input-label value="Body" />
+                                                <div class="mt-1 border border-gray-300 rounded-md overflow-hidden">
+                                                    <div id="editor_{{ $template->id }}"
+                                                        style="min-height: 200px;">{!! $template->body !!}</div>
+                                                </div>
+                                                <input type="hidden"
+                                                    name="body"
+                                                    id="body_{{ $template->id }}"
+                                                    value="{{ $template->body }}">
+                                            </div>
+
+                                        </div>
+
+                                        <div class="px-6 py-4 border-t bg-gray-50 flex justify-end">
+                                            <x-primary-button>Save Template</x-primary-button>
+                                        </div>
+                                    </form>
+
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
                 </div>
 
                 {{-- Homepage Content --}}
@@ -385,9 +681,6 @@
                                                                 'homepage_hero_body' => 'Hero Body',
                                                                 'homepage_primary_cta' => 'Primary Button Text',
                                                                 'homepage_secondary_cta' => 'Secondary Button Text',
-                                                                'homepage_stat_tickets' => 'Hero Tickets Stat',
-                                                                'homepage_stat_sold' => 'Hero Sold Stat',
-                                                                'homepage_stat_price' => 'Hero Price Stat',
                                                             ] as $key => $fallbackLabel)
                                                                 <div>
                                                                     <x-input-label :for="$key" :value="$settingLabel($key, $fallbackLabel)" />
@@ -514,8 +807,12 @@
                             </div>
                         </div>
 
-                        <div class="flex justify-end mt-4">
-                            <x-primary-button>Save Homepage Content</x-primary-button>
+                        <div class="sticky bottom-4 z-50 mt-6 flex justify-end pointer-events-none">
+                            <div class="pointer-events-auto rounded-2xl bg-white/90 backdrop-blur-md border border-gray-200 shadow-2xl px-4 py-3">
+                                <x-primary-button>
+                                    Save Homepage Content
+                                </x-primary-button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -523,6 +820,83 @@
             </div>
         </div>
     </div>
+    @push('scripts')
+        <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+        <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+        <script>
+            const editors = {};
+
+            document.addEventListener('DOMContentLoaded', function () {
+                @foreach ($emailTemplates as $template)
+                    editors[{{ $template->id }}] = new Quill('#editor_{{ $template->id }}', {
+                        theme: 'snow',
+                        modules: {
+                            toolbar: [
+                                ['bold', 'italic', 'underline'],
+                                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                ['link'],
+                                ['clean'],
+                            ]
+                        }
+                    });
+
+                    // Sync editor content to hidden input before form submit
+                    editors[{{ $template->id }}].on('text-change', function () {
+                        document.getElementById('body_{{ $template->id }}').value =
+                            editors[{{ $template->id }}].root.innerHTML;
+                    });
+                @endforeach
+            });
+
+            // Insert placeholder at cursor position
+            function insertPlaceholder(templateId, placeholder) {
+                const editor = editors[templateId];
+                if (! editor) return;
+
+                const range = editor.getSelection(true);
+                editor.insertText(range.index, placeholder);
+                editor.setSelection(range.index + placeholder.length);
+
+                document.getElementById('body_' + templateId).value =
+                    editor.root.innerHTML;
+            }
+        </script>
+        <script>
+            function previewQR(input, group) {
+                const file    = input.files[0];
+                const wrapper = document.getElementById('qr-preview-' + group);
+                const img     = document.getElementById('qr-preview-img-' + group);
+
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        img.src = e.target.result;
+                        wrapper.classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    wrapper.classList.add('hidden');
+                }
+            }
+        </script>
+    @endpush
+    {{-- Reusable DELETE form — triggered by deleteItem() --}}
+    <form id="delete-form" method="POST" style="display:none;">
+        @csrf
+        @method('DELETE')
+    </form>
+
+    @push('scripts')
+    <script>
+        function deleteItem(url, message) {
+            if (! confirm(message ?? 'Are you sure? This cannot be undone.')) return;
+            const form = document.getElementById('delete-form');
+            form.action = url;
+            form.submit();
+        }
+    </script>
+    @endpush
 </x-app-layout>
 <script>
     function homepageLayout() {

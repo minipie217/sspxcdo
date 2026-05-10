@@ -33,7 +33,7 @@ class TicketPaymentController extends Controller
         $sponsor  = Auth::guard('sponsor')->user();
         $useOther = $request->boolean('use_other_name');
 
-        $reserved = $this->paymentService->reserve(
+        $result = $this->paymentService->reserve(
             ticket:    $ticket,
             sponsorId: $sponsor->id,
             useOther:  $useOther,
@@ -41,7 +41,13 @@ class TicketPaymentController extends Controller
             lastName:  $request->holder_last_name,
         );
 
-        if (! $reserved) {
+        if ($result === 'limit_reached') {
+            $max = $this->settingService->maxTicketsPerSponsor();
+            return redirect()->route('ticket.index', $raffle)
+                ->with('error', "You have reached the maximum of {$max} tickets per raffle.");
+        }
+
+        if (! $result) {
             return redirect()->route('ticket.index', $raffle)
                 ->with('error', "Ticket {$ticket->ticket_number} was just taken. Please choose another.");
         }

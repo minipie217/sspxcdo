@@ -29,7 +29,12 @@ class SponsorAuthService
             'otp_expires_at' => now()->addMinutes(self::OTP_EXPIRY_MINUTES),
         ]);
 
-        $sponsor->notify(new SponsorOtpNotification($otp));
+        // Use login template if sponsor already verified, register template if not
+        $templateKey = $sponsor->email_verified_at
+            ? 'sponsor_login_otp'
+            : 'sponsor_registration_otp';
+
+        $sponsor->notify(new SponsorOtpNotification($otp, $templateKey));
     }
 
     public function verifyOtp(Sponsor $sponsor, string $otp): bool

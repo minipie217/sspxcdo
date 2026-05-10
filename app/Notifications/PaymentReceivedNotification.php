@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\TicketPayment;
+use App\Services\EmailTemplateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -35,13 +36,16 @@ class PaymentReceivedNotification extends Notification
         $ticket  = $this->payment->ticket;
         $sponsor = $this->payment->sponsor;
 
+        $template = app(EmailTemplateService::class)->render('payment_received', [
+            'admin_name'    => $notifiable->name,
+            'ticket_number' => $ticket->ticket_number,
+            'sponsor_name'  => $sponsor->fullName(),
+            'raffle_title'  => $ticket->raffle->title,
+        ]);
+
         return (new MailMessage)
-            ->subject('New Payment Pending Confirmation')
-            ->greeting("Hello {$notifiable->name},")
-            ->line("A payment has been submitted for ticket **{$ticket->ticket_number}**.")
-            ->line("Sponsor: {$sponsor->fullName()}")
-            ->line("Proof type: {$this->payment->proof_type->value}")
-            ->action('Review Payment', url("/admin/payments/{$this->payment->id}"));
+            ->subject($template['subject'])
+            ->view('emails.template', ['body' => $template['body']]);
     }
 
     /**

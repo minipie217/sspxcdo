@@ -20,29 +20,57 @@ class AdminSettingController extends Controller
         $this->ensureHomepageSettings();
 
         $groups = Setting::orderBy('group')->orderBy('id')->get()->groupBy('group');
-        $homeLayout = $this->homepageLayoutService->read();
 
-        return view('admin.settings.index', compact('groups', 'homeLayout'));
+        $emailTemplates = \App\Models\EmailTemplate::orderBy('id')->get();
+        $homeLayout = app(\App\Services\HomepageLayoutService::class)->read();
+        $paymentAccounts = \App\Models\PaymentAccount::orderBy('sort_order')->get();
+
+        return view('admin.settings.index', compact('groups', 'emailTemplates', 'homeLayout', 'paymentAccounts'));
+    }
+
+    public function updateEmailTemplate(Request $request, \App\Models\EmailTemplate $template)
+    {
+        $request->validate([
+            'subject' => 'required|string|max:255',
+            'body'    => 'required|string',
+        ]);
+
+        $template->update([
+            'subject' => $request->subject,
+            'body'    => $request->body,
+        ]);
+
+        return back()
+            ->with('success', "Email template \"{$template->label}\" saved.")
+            ->with('tab', 'emails');
     }
 
     public function update(Request $request)
     {
         $this->ensureHomepageSettings();
 
-        $data = $request->validate([
-            'settings'   => 'required|array',
-            'settings.*' => 'nullable|string|max:2000',
-            'site_logo'         => 'nullable|file|mimes:jpg,jpeg,png,svg|max:2048',
-            'hero_background'   => 'nullable|file|mimes:jpg,jpeg,png,webp|max:4096',
-            'home_layout_json'   => 'nullable|string|max:5000',
-            'tab'        => 'nullable|string',
+        $request->validate([
+            'settings'         => 'required|array',
+            'settings.*'       => 'nullable|string|max:2000',
+            'site_logo'        => 'nullable|file|mimes:jpg,jpeg,png,svg|max:2048',
+            'hero_background'  => 'nullable|file|mimes:jpg,jpeg,png,webp|max:4096',
+            'home_layout_json' => 'nullable|string|max:5000',
+            'tab'              => 'nullable|string',
+            'qr_codes'         => 'nullable|array',
+            'qr_codes.*'       => 'nullable|file|mimes:jpg,jpeg,png,svg|max:2048',
         ]);
 
+        // Save all text settings
+        foreach ($request->input('settings', []) as $key => $value) {
+            Setting::set($key, $value);
+        }
+
+        // Validate and save homepage layout JSON
         if ($request->filled('home_layout_json')) {
             $decoded = json_decode($request->input('home_layout_json'), true);
             $allowed = array_keys($this->homepageLayoutService->availableSections());
+            $keys    = collect($decoded['sections'] ?? [])->pluck('key')->filter()->all();
 
-            $keys = collect($decoded['sections'] ?? [])->pluck('key')->filter()->all();
             if (! is_array($decoded) || ! isset($decoded['sections']) || array_diff($keys, $allowed)) {
                 return back()
                     ->withErrors(['home_layout_json' => 'Home layout JSON must contain valid section keys only.'])
@@ -53,53 +81,33 @@ class AdminSettingController extends Controller
             $this->homepageLayoutService->write($decoded);
         }
 
-        // Handle text settings — skip internal keys
-        $skip = ['remove_logo', 'remove_hero_background'];
-        foreach ($request->input('settings', []) as $key => $value) {
-            if (in_array($key, $skip)) continue;
-            Setting::set($key, $value);
-        }
-
-        // Handle logo removal
-        if ($request->input('settings.remove_logo') === '1') {
-            $old = Setting::get('site_logo');
-            if ($old) {
-                Storage::disk('public')->delete($old);
-            }
-            Setting::set('site_logo', null);
-        }
-
-        if ($request->input('settings.remove_hero_background') === '1') {
-            $old = Setting::get('homepage_hero_background');
-            if ($old) {
-                Storage::disk('public')->delete($old);
-            }
-            Setting::set('homepage_hero_background', null);
-        }
-
-        // Handle logo upload separately
+        // Site logo upload — overwrites existing
         if ($request->hasFile('site_logo')) {
-            // Delete old logo if exists
             $old = Setting::get('site_logo');
-            if ($old) {
-                Storage::disk('public')->delete($old);
-            }
-
+            if ($old) Storage::disk('public')->delete($old);
             $path = $request->file('site_logo')->store('logos', 'public');
             Setting::set('site_logo', $path);
         }
 
+        // Hero background upload — overwrites existing
         if ($request->hasFile('hero_background')) {
             $old = Setting::get('homepage_hero_background');
-            if ($old) {
-                Storage::disk('public')->delete($old);
-            }
-
+            if ($old) Storage::disk('public')->delete($old);
             $path = $request->file('hero_background')->store('homepage', 'public');
             Setting::set('homepage_hero_background', $path);
         }
 
-        return back()->with('success', 'Settings updated.')->with('tab', $request->tab ?? 'general');
+        // QR code uploads — overwrites existing per key
+        foreach ($request->file('qr_codes', []) as $key => $file) {
+            $old = Setting::get($key);
+            if ($old) Storage::disk('public')->delete($old);
+            $path = $file->store('qr_codes', 'public');
+            Setting::set($key, $path);
+        }
+
+        return back()
+            ->with('success', 'Settings updated.')
+            ->with('tab', $request->tab ?? 'general');
     }
 
     private function ensureHomepageSettings(): void
@@ -143,9 +151,44 @@ class AdminSettingController extends Controller
             ['key' => 'homepage_sections_body', 'value' => 'Large bands, focused messages, strong calls to action, and repeated visual blocks give the page a commercial feel while keeping the content specific to raffle management.', 'label' => 'Sections Body'],
             ['key' => 'homepage_final_cta_heading', 'value' => 'Ready to send visitors into the raffle flow?', 'label' => 'Final CTA Heading'],
             ['key' => 'homepage_final_cta_body', 'value' => 'Use the homepage as the front door for sponsors while admins keep running raffles from the dashboard.', 'label' => 'Final CTA Body'],
-            ['key' => 'homepage_stat_tickets', 'value' => '2,500', 'label' => 'Hero Tickets Stat'],
-            ['key' => 'homepage_stat_sold', 'value' => '1,842', 'label' => 'Hero Sold Stat'],
-            ['key' => 'homepage_stat_price', 'value' => 'P100', 'label' => 'Hero Price Stat'],
         ];
+    }
+
+    public function deleteQr(string $key)
+    {
+        // Validate key is a known QR setting
+        $allowed = [
+            'bdo_qr_code', 'bpi_qr_code', 'metrobank_qr_code',
+            'unionbank_qr_code', 'gcash_qr_code', 'maya_qr_code', 'other_qr_code',
+        ];
+
+        if (! in_array($key, $allowed)) {
+            abort(404);
+        }
+
+        $path = Setting::get($key);
+
+        if ($path) {
+            Storage::disk('public')->delete($path);
+            Setting::set($key, null);
+        }
+
+        return back()
+            ->with('success', 'QR code removed.')
+            ->with('tab', 'payment');
+    }
+
+    public function deleteLogo()
+    {
+        $path = Setting::get('site_logo');
+
+        if ($path) {
+            Storage::disk('public')->delete($path);
+            Setting::set('site_logo', null);
+        }
+
+        return back()
+            ->with('success', 'Logo removed.')
+            ->with('tab', 'general');
     }
 }

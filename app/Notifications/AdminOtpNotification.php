@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Services\EmailTemplateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -22,12 +23,13 @@ class AdminOtpNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        $template = app(EmailTemplateService::class)->render('admin_otp', [
+            'name' => $notifiable->name,
+            'otp'  => $this->otp,
+        ]);
+
         return (new MailMessage)
-            ->subject('Your Admin Verification Code')
-            ->greeting("Hello {$notifiable->name},")
-            ->line('Use the code below to log in to the admin panel.')
-            ->line("**{$this->otp}**")
-            ->line('This code expires in 15 minutes.')
-            ->line('If you did not request this, please ignore this email.');
+            ->subject($template['subject'])
+            ->view('emails.template', ['body' => $template['body']]);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\TicketPayment;
+use App\Services\EmailTemplateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -35,12 +36,17 @@ class PaymentRejectedNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $ticket = $this->payment->ticket;
+
+        $template = app(EmailTemplateService::class)->render('payment_rejected', [
+            'name'             => $notifiable->first_name,
+            'ticket_number'    => $ticket->ticket_number,
+            'rejection_reason' => $this->notes ? "Reason: {$this->notes}" : '',
+        ]);
+
         return (new MailMessage)
-            ->subject('Payment Rejected')
-            ->greeting("Hello {$notifiable->first_name},")
-            ->line("Your payment for ticket **{$this->payment->ticket->ticket_number}** has been rejected.")
-            ->line('Please submit a new payment or contact support for assistance.')
-            ->action('Submit New Payment', url("/raffle/{$this->payment->ticket->raffle_id}/tickets/{$this->payment->ticket->id}/payments"));
+            ->subject($template['subject'])
+            ->view('emails.template', ['body' => $template['body']]);
     }
 
     /**

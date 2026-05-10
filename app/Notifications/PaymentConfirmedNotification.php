@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\TicketPayment;
+use App\Services\EmailTemplateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -37,14 +38,16 @@ class PaymentConfirmedNotification extends Notification
     {
         $ticket = $this->payment->ticket;
         
+        $template = app(EmailTemplateService::class)->render('payment_confirmed', [
+            'name'          => $notifiable->first_name,
+            'ticket_number' => $ticket->ticket_number,
+            'raffle_title'  => $ticket->raffle->title,
+            'draw_date'     => $ticket->raffle->draw_date->format('M d, Y'),
+        ]);
+
         return (new MailMessage)
-            ->subject('Payment Confirmed — Ticket Sold!')
-            ->greeting("Hello {$notifiable->first_name},")
-            ->line("Your payment for ticket **{$ticket->ticket_number}** has been confirmed.")
-            ->line("Raffle: {$ticket->raffle->title}")
-            ->line("Draw Date: {$ticket->raffle->draw_date->format('M d, Y')}")
-            ->line('Good luck!')
-            ->action('View Raffle', url("/raffle/{$ticket->raffle_id}"));
+            ->subject($template['subject'])
+            ->view('emails.template', ['body' => $template['body']]);
     }
 
     /**

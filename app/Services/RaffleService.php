@@ -3,9 +3,12 @@
 namespace App\Services;
 
 use App\Enums\RaffleStatus;
+use App\Notifications\RaffleCreatedNotification;
+use Illuminate\Support\Facades\Notification;
 use App\Jobs\GenerateRaffleTickets;
 use App\Models\Raffle;
 use App\Models\RafflePrize;
+use App\Models\Sponsor;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -37,6 +40,13 @@ class RaffleService
                     strtoupper(trim($data['ticket_prefix'] ?? '')),
                     max((int) $data['ticket_digits'], strlen((string) $data['total_tickets']))
                 );
+            }
+
+            // Notify all sponsors about the new raffle
+            // Only if status is active — no point announcing a draft
+            if ($raffle->status !== RaffleStatus::Draft) {
+                $sponsors = Sponsor::all();
+                Notification::send($sponsors, new RaffleCreatedNotification($raffle));
             }
 
             return $raffle;
@@ -83,16 +93,13 @@ class RaffleService
                 GenerateRaffleTickets::dispatch($raffle, $prefix, $digits);
             }
 
-            return $raffle->fresh();
-        });
-    }
+            // Notify sponsors only when status changes TO active for the first time
+            if ($wasNotActive && $isNowActive) {
+                $sponsors = Sponsor::all();
+                Notification::send($sponsors, new RaffleCreatedNotification($raffle->fresh()));
+            }
 
-    public function deleteRaffle(Raffle $raffle): void
-    {
-        DB::transaction(function () use ($raffle) {
-            $raffle->tickets()->delete();
-            $raffle->prizes()->delete();
-            $raffle->delete();
+            return $raffle->fresh();
         });
     }
 

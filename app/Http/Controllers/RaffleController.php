@@ -33,11 +33,11 @@ class RaffleController extends Controller
     {
         $raffle = $this->raffleService->createRaffle($request->validated());
 
-        return redirect()->route('raffle.show', $raffle)
+        return redirect()->route('raffle.index', $raffle)
             ->with('success', $raffle->status->value === 'generating'
                 ? 'Raffle created! Tickets are being generated.'
                 : 'Raffle created successfully!'
-            );
+            )->with('new_raffle_id', $raffle->id);
     }
 
     public function show(Raffle $raffle)
@@ -84,11 +84,30 @@ class RaffleController extends Controller
             ->with('success', 'Raffle updated successfully!');
     }
 
-    public function destroy(Raffle $raffle)
+    public function archive(Raffle $raffle)
     {
-        $this->raffleService->deleteRaffle($raffle);
+        $raffle->delete(); // soft delete only — tickets and prizes stay intact
 
         return redirect()->route('raffle.index')
-            ->with('success', 'Raffle deleted.');
+            ->with('success', "Raffle \"{$raffle->title}\" has been archived.");
+    }
+
+    public function restore(Raffle $id)
+    {
+        $raffle = Raffle::onlyTrashed()->findOrFail($id);
+        $raffle->restore();
+
+        return redirect()->route('raffle.index')
+            ->with('success', "Raffle \"{$raffle->title}\" has been restored.");
+    }
+
+    public function archived()
+    {
+        $raffles = Raffle::onlyTrashed()
+            ->with('prizes')
+            ->latest('deleted_at')
+            ->paginate(10);
+
+        return view('raffle.archived', compact('raffles'));
     }
 }

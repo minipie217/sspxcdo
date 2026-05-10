@@ -2,20 +2,19 @@
 
 namespace App\Notifications;
 
-use App\Services\EmailTemplateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class SponsorOtpNotification extends Notification
+class RaffleCreatedNot extends Notification
 {
     use Queueable;
 
     /**
      * Create a new notification instance.
      */
-    public function __construct(public string $otp,public string $templateKey = 'sponsor_registration_otp')
+    public function __construct()
     {
         //
     }
@@ -35,14 +34,10 @@ class SponsorOtpNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $template = app(EmailTemplateService::class)->render($this->templateKey, [
-            'name' => $notifiable->first_name,
-            'otp'  => $this->otp,
-        ]);
-
         return (new MailMessage)
-            ->subject($template['subject'])
-            ->view('emails.template', ['body' => $template['body']]);
+            ->line('The introduction to the notification.')
+            ->action('Notification Action', url('/'))
+            ->line('Thank you for using our application!');
     }
 
     /**

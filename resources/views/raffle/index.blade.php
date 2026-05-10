@@ -4,11 +4,17 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Raffles
             </h2>
-            @if (Auth::guard('web')->check())
-                <a href="{{ route('raffle.create') }}">
-                    <x-primary-button>New Raffle</x-primary-button>
-                </a>
-            @endif
+            <div class="flex items-center gap-3">
+                @if (Auth::guard('web')->check())
+                    <a href="{{ route('raffle.archived') }}"
+                    class="text-sm text-gray-500 hover:underline">
+                        Archived
+                    </a>
+                    <a href="{{ route('raffle.create') }}">
+                        <x-primary-button>Create New Raffle</x-primary-button>
+                    </a>
+                @endif
+            </div>
         </div>
     </x-slot>
 
@@ -16,8 +22,14 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
             @if (session('success'))
-                <div class="mb-4 p-4 bg-green-50 text-green-700 rounded">
-                    {{ session('success') }}
+                <div class="mb-4 p-4 bg-green-50 text-green-700 rounded-lg flex items-center justify-between">
+                    <span>{{ session('success') }}</span>
+                    @if (session('new_raffle_id'))
+                        <a href="{{ route('raffle.show', session('new_raffle_id')) }}"
+                        class="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700">
+                            View Raffle →
+                        </a>
+                    @endif
                 </div>
             @endif
 
@@ -56,16 +68,16 @@
 
                                         @if (Auth::guard('web')->check())
                                             <a href="{{ route('raffle.edit', $raffle) }}"
-                                               class="text-yellow-600 hover:underline">Edit</a>
+                                            class="text-yellow-600 hover:underline">Edit</a>
+
                                             <form method="POST"
-                                                  action="{{ route('raffle.destroy', $raffle) }}"
-                                                  class="inline"
-                                                  onsubmit="return confirm('Delete this raffle?')">
+                                                action="{{ route('raffle.archive', $raffle) }}"
+                                                class="inline"
+                                                onsubmit="return confirm('Archive this raffle? It can be restored later.')">
                                                 @csrf
-                                                @method('DELETE')
-                                                <button type="submit"
-                                                        class="text-red-600 hover:underline">
-                                                    Delete
+                                                @method('PATCH')
+                                                <button type="submit" class="text-gray-500 hover:underline">
+                                                    Archive
                                                 </button>
                                             </form>
                                         @endif

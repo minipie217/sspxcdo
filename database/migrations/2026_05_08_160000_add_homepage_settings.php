@@ -170,30 +170,6 @@ return new class extends Migration
                 'created_at' => $now,
                 'updated_at' => $now,
             ],
-            [
-                'key' => 'homepage_stat_tickets',
-                'value' => '2,500',
-                'label' => 'Hero Tickets Stat',
-                'group' => 'homepage',
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-            [
-                'key' => 'homepage_stat_sold',
-                'value' => '1,842',
-                'label' => 'Hero Sold Stat',
-                'group' => 'homepage',
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-            [
-                'key' => 'homepage_stat_price',
-                'value' => 'P100',
-                'label' => 'Hero Price Stat',
-                'group' => 'homepage',
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
         ]);
     }
 

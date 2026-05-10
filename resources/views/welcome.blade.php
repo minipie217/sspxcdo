@@ -281,15 +281,6 @@
                             @break
 
                         @case('features')
-                            <section class="border-y border-stone-900/10 bg-[#073f2d] py-5 text-white">
-                                <div class="mx-auto grid max-w-7xl gap-4 px-5 text-sm font-bold sm:grid-cols-2 lg:grid-cols-4 lg:px-8">
-                                    <p>Ticket reservations</p>
-                                    <p>Payment proof tracking</p>
-                                    <p>Sponsor registration</p>
-                                    <p>Admin raffle controls</p>
-                                </div>
-                            </section>
-
                             <section id="features" class="bg-white py-20">
                                 <div class="mx-auto max-w-7xl px-5 lg:px-8">
                                     @if ($has('homepage_feature_intro') || $has('homepage_feature_heading'))

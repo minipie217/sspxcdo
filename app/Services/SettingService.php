@@ -38,41 +38,22 @@ class SettingService
 
     public function paymentInstructions(): array
     {
-        return [
-            'bdo' => [
-                'label'          => 'BDO',
-                'account_name'   => Setting::get('bdo_account_name'),
-                'account_number' => Setting::get('bdo_account_number'),
-            ],
-            'bpi' => [
-                'label'          => 'BPI',
-                'account_name'   => Setting::get('bpi_account_name'),
-                'account_number' => Setting::get('bpi_account_number'),
-            ],
-            'metrobank' => [
-                'label'          => 'Metrobank',
-                'account_name'   => Setting::get('metrobank_account_name'),
-                'account_number' => Setting::get('metrobank_account_number'),
-            ],
-            'unionbank' => [
-                'label'          => 'UnionBank',
-                'account_name'   => Setting::get('unionbank_account_name'),
-                'account_number' => Setting::get('unionbank_account_number'),
-            ],
-            'gcash' => [
-                'label'  => 'GCash',
-                'name'   => Setting::get('gcash_name'),
-                'number' => Setting::get('gcash_number'),
-            ],
-            'maya' => [
-                'label'  => 'Maya',
-                'name'   => Setting::get('maya_name'),
-                'number' => Setting::get('maya_number'),
-            ],
-            'other' => [
-                'label'   => Setting::get('other_payment_label'),
-                'details' => Setting::get('other_payment_details'),
-            ],
-        ];
+        return \App\Models\PaymentAccount::where('is_active', true)
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn($account) => [
+                'type'           => $account->type,
+                'label'          => $account->label,
+                'account_name'   => $account->account_name,
+                'account_number' => $account->account_number,
+                'qr_code'        => $account->qr_code,
+                'icon'           => $account->typeIcon(),
+            ])
+            ->toArray();
+    }
+
+    public function maxTicketsPerSponsor(): int
+    {
+        return (int) Setting::get('max_tickets_per_sponsor', 5);
     }
 }

@@ -124,7 +124,7 @@
                                 <th class="px-4 py-3">Raffle</th>
                                 <th class="px-4 py-3">Sponsor</th>
                                 <th class="px-4 py-3">Status</th>
-                                <th class="px-4 py-3">Decided By</th>
+                                <th class="px-4 py-3">Payment approved By</th>
                                 <th class="px-4 py-3">Date</th>
                             </tr>
                         </thead>

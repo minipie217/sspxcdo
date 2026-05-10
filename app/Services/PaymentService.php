@@ -25,7 +25,17 @@ class PaymentService
         bool    $useOther,
         ?string $firstName,
         ?string $lastName
-    ): bool {
+    ): bool|string {
+        // Check how many tickets this sponsor already has for this raffle
+        $max     = $this->settingService->maxTicketsPerSponsor();
+        $current = Ticket::where('sponsor_id', $sponsorId)
+            ->where('raffle_id', $ticket->raffle_id)
+            ->whereIn('status', ['reserved', 'sold'])
+            ->count();
+
+        if ($current >= $max) {
+            return "limit_reached";
+        }
         return DB::transaction(function () use ($ticket, $sponsorId, $useOther, $firstName, $lastName) {
 
             $minutes = $this->settingService->reservationMinutes();
@@ -116,8 +126,11 @@ class PaymentService
                 'confirmed_at' => now(),
             ]);
 
+            // Clear reservation data — ticket is now sold
             $payment->ticket->update([
-                'status' => TicketStatus::Sold,
+                'status'         => TicketStatus::Sold,
+                'reserved_until' => null,  // clear expiry
+                'sponsor_id'     => $payment->sponsor_id, // keep sponsor
             ]);
 
             $payment->sponsor->notify(new PaymentConfirmedNotification($payment));
