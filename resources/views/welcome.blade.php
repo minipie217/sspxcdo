@@ -160,7 +160,7 @@
                         @case('hero')
                 @if ($has('homepage_hero_background'))
                     <section id="hero" class="relative min-h-[680px] bg-cover bg-center text-white" style="background-image: url('{{ Storage::url($content['homepage_hero_background']) }}')">
-                        <div class="absolute inset-0 bg-[#073f2d]/70"></div>
+                        <div class="absolute inset-0 bg-[#000000]/70"></div>
                         <div class="relative mx-auto flex min-h-[680px] max-w-7xl items-center px-5 py-20 lg:px-8">
                             <div class="max-w-3xl">
                                 @if ($has('homepage_badge'))
